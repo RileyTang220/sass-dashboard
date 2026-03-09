@@ -3,12 +3,16 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useDataStore } from '@/stores/dataStore'
+import { useSubscriptionStore } from '@/stores/subscriptionStore'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const dataStore = useDataStore()
+const subscriptionStore = useSubscriptionStore()
 const toast = useToast()
 
 const loading = ref(false)
@@ -40,12 +44,13 @@ async function onSubmit() {
   if (!validate()) return
   loading.value = true
   try {
-    const ok = authStore.login(form.email, form.password)
+    const ok = await authStore.login(form.email, form.password)
     if (ok) {
       settingsStore.profile = {
         name: authStore.user!.name,
         email: authStore.user!.email,
       }
+      await Promise.all([dataStore.initData(), subscriptionStore.init()])
       toast.success('Welcome back!')
       const redirect = (route.query.redirect as string) || '/'
       await router.replace(redirect)

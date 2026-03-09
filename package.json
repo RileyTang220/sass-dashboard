@@ -16,6 +16,9 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "uuid": "^9.0.1",
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
     "@tailwindcss/vite": "^4.1.17",

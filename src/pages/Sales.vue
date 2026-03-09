@@ -65,21 +65,25 @@ const openEditModal = (sale: Sale) => {
   isFormModalOpen.value = true
 }
 
-const handleSubmitSale = () => {
-  if (isEditMode.value && saleToEdit.value) {
-    store.updateSale({
-      ...saleToEdit.value,
-      ...saleForm,
-    })
-    toast.success('Sale record updated')
-  } else {
-    store.addSale({
-      ...saleForm,
-      date: new Date().toISOString(),
-    })
-    toast.success('Sale record added')
+const handleSubmitSale = async () => {
+  try {
+    if (isEditMode.value && saleToEdit.value) {
+      await store.updateSale({
+        ...saleToEdit.value,
+        ...saleForm,
+      })
+      toast.success('Sale record updated')
+    } else {
+      await store.addSale({
+        ...saleForm,
+        date: new Date().toISOString(),
+      })
+      toast.success('Sale record added')
+    }
+    isFormModalOpen.value = false
+  } catch {
+    toast.error('Request failed')
   }
-  isFormModalOpen.value = false
 }
 
 const openDeleteModal = (id: string) => {
@@ -87,10 +91,13 @@ const openDeleteModal = (id: string) => {
   isDeleteModalOpen.value = true
 }
 
-const confirmDelete = () => {
-  if (saleIdToDelete.value) {
-    store.deleteSale(saleIdToDelete.value)
+const confirmDelete = async () => {
+  if (!saleIdToDelete.value) return
+  try {
+    await store.deleteSale(saleIdToDelete.value)
     toast.success('Sale record deleted')
+  } catch {
+    toast.error('Request failed')
   }
   isDeleteModalOpen.value = false
   saleIdToDelete.value = null

@@ -3,11 +3,15 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useDataStore } from '@/stores/dataStore'
+import { useSubscriptionStore } from '@/stores/subscriptionStore'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const dataStore = useDataStore()
+const subscriptionStore = useSubscriptionStore()
 const toast = useToast()
 
 const loading = ref(false)
@@ -51,12 +55,13 @@ async function onSubmit() {
   if (!validate()) return
   loading.value = true
   try {
-    const ok = authStore.register(form.name, form.email, form.password)
+    const ok = await authStore.register(form.name, form.email, form.password)
     if (ok) {
       settingsStore.profile = {
         name: authStore.user!.name,
         email: authStore.user!.email,
       }
+      await Promise.all([dataStore.initData(), subscriptionStore.init()])
       toast.success('Account created. Welcome!')
       await router.replace('/')
     } else {
@@ -91,7 +96,7 @@ async function onSubmit() {
               v-model="form.name"
               type="text"
               autocomplete="name"
-              placeholder="Jane Doe"
+              placeholder="ruiling tang"
               class="block w-full rounded-lg border px-3 py-2.5 text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               :class="errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
             />

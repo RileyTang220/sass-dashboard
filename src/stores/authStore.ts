@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { api, getToken } from '@/api/client'
 
 const AUTH_KEY = 'saas_dashboard_auth'
 
@@ -29,38 +30,51 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const persist = () => {
-    if (token.value && user.value) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify({ token: token.value, user: user.value }))
-    } else {
-      localStorage.removeItem(AUTH_KEY)
+  const persist = (t: string, u: AuthUser) => {
+    token.value = t
+    user.value = u
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ token: t, user: u }))
+  }
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    if (!email.trim() || !password) return false
+    try {
+      const res = await api.auth.login(email.trim(), password)
+      persist(res.token, { email: res.user.email, name: res.user.name })
+      return true
+    } catch {
+      return false
     }
   }
 
-  const login = (email: string, password: string): boolean => {
-    if (!email.trim() || !password) return false
-    const normalizedEmail = email.trim().toLowerCase()
-    const namePart = normalizedEmail.split('@')[0]
-    const name = (namePart ?? '').replace(/[._]/g, ' ').trim() || 'User'
-    token.value = 'mock-jwt-' + Math.random().toString(36).slice(2)
-    user.value = { email: normalizedEmail, name }
-    persist()
-    return true
-  }
-
-  const register = (name: string, email: string, password: string): boolean => {
+  const register = async (name: string, email: string, password: string): Promise<boolean> => {
     if (!name.trim() || !email.trim() || !password) return false
-    const normalizedEmail = email.trim().toLowerCase()
-    token.value = 'mock-jwt-' + Math.random().toString(36).slice(2)
-    user.value = { email: normalizedEmail, name: name.trim() }
-    persist()
-    return true
+    try {
+      const res = await api.auth.register(name.trim(), email.trim(), password)
+      persist(res.token, { email: res.user.email, name: res.user.name })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const logout = () => {
     token.value = null
     user.value = null
     localStorage.removeItem(AUTH_KEY)
+  }
+
+  /** Validate token with server (optional). */
+  const validateToken = async (): Promise<boolean> => {
+    if (!getToken()) return false
+    try {
+      const me = await api.auth.me()
+      user.value = { email: me.email, name: me.name }
+      return true
+    } catch {
+      logout()
+      return false
+    }
   }
 
   return {
@@ -71,5 +85,6 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
+    validateToken,
   }
 })

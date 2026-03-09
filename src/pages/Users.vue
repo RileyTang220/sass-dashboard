@@ -56,21 +56,25 @@ const openEditModal = (user: User) => {
   isFormModalOpen.value = true;
 };
 
-const handleSubmitUser = () => {
-  if (isEditMode.value && userToEdit.value) {
-    store.updateUser({
-      ...userToEdit.value,
-      ...userForm,
-    });
-    toast.success('User updated');
-  } else {
-    store.addUser({
-      ...userForm,
-      avatar: `https://ui-avatars.com/api/?name=${userForm.name.replace(' ', '+')}&background=random`,
-    });
-    toast.success('User added');
+const handleSubmitUser = async () => {
+  try {
+    if (isEditMode.value && userToEdit.value) {
+      await store.updateUser({
+        ...userToEdit.value,
+        ...userForm,
+      });
+      toast.success('User updated');
+    } else {
+      await store.addUser({
+        ...userForm,
+        avatar: `https://ui-avatars.com/api/?name=${userForm.name.replace(' ', '+')}&background=random`,
+      });
+      toast.success('User added');
+    }
+    isFormModalOpen.value = false;
+  } catch {
+    toast.error('Request failed');
   }
-  isFormModalOpen.value = false;
 };
 
 // --- Delete Functions ---
@@ -79,10 +83,13 @@ const openDeleteModal = (id: string) => {
   isDeleteModalOpen.value = true;
 };
 
-const confirmDelete = () => {
-  if (userIdToDelete.value) {
-    store.deleteUser(userIdToDelete.value);
+const confirmDelete = async () => {
+  if (!userIdToDelete.value) return;
+  try {
+    await store.deleteUser(userIdToDelete.value);
     toast.success('User deleted');
+  } catch {
+    toast.error('Request failed');
   }
   isDeleteModalOpen.value = false;
   userIdToDelete.value = null;

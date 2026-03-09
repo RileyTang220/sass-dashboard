@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { User, Sale, DateRange } from '@/types'
 import { generateMockUsers, generateMockSales } from '@/utils/mockData'
 import { isWithinInterval, parseISO, subDays, subMonths, format, startOfMonth, endOfMonth } from 'date-fns'
+import { api, getToken } from '@/api/client'
 
 export const useDataStore = defineStore('data', () => {
-  // State
   const users = ref<User[]>([])
   const sales = ref<Sale[]>([])
+  const initError = ref<string | null>(null)
 
   const dateRange = ref<DateRange>({
     start: subDays(new Date(), 30),
@@ -15,27 +16,23 @@ export const useDataStore = defineStore('data', () => {
     label: 'Last 30 Days',
   })
 
-  const initData = () => {
-    const storedUsers = localStorage.getItem('saas_dashboard_users')
-    const storedSales = localStorage.getItem('saas_dashboard_sales')
-    if (storedUsers && storedSales) {
-      users.value = JSON.parse(storedUsers)
-      sales.value = JSON.parse(storedSales)
-    } else {
-      console.log('First run: Seeding mock data...')
+  const initData = async () => {
+    initError.value = null
+    if (!getToken()) return
+    try {
+      const [usersRes, salesRes] = await Promise.all([
+        api.users.list(),
+        api.sales.list(),
+      ])
+      users.value = usersRes
+      sales.value = salesRes
+    } catch (e) {
+      initError.value = e instanceof Error ? e.message : 'Failed to load data'
+      console.warn('API init failed, using mock data:', initError.value)
       users.value = generateMockUsers(20)
       sales.value = generateMockSales(100)
     }
   }
-
-  watch(
-    [users, sales],
-    () => {
-      localStorage.setItem('saas_dashboard_users', JSON.stringify(users.value))
-      localStorage.setItem('saas_dashboard_sales', JSON.stringify(sales.value))
-    },
-    { deep: true },
-  )
 
   const filteredSales = computed(() => {
     return sales.value
@@ -197,35 +194,50 @@ export const useDataStore = defineStore('data', () => {
     dateRange.value = { start, end, label }
   }
 
-  const addUser = (user: Omit<User, 'id' | 'joinedDate'>) => {
-    const newUser: User = {
-      ...user,
-      id: Math.random().toString(36).substr(2, 9),
-      joinedDate: new Date().toISOString(),
-    }
-    users.value.unshift(newUser)
+  const addUser = async (user: Omit<User, 'id' | 'joinedDate'>) => {
+    const newUser = await api.users.create({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    })
+    users.value = [newUser, ...users.value]
   }
-  const deleteUser = (id: string) => {
+  const deleteUser = async (id: string) => {
+    await api.users.delete(id)
     users.value = users.value.filter((u) => u.id !== id)
   }
-  const updateUser = (updatedUser: User) => {
-    const index = users.value.findIndex((u) => u.id === updatedUser.id)
-    if (index !== -1) {
-      users.value[index] = updatedUser
-    }
+  const updateUser = async (updatedUser: User) => {
+    const updated = await api.users.update(updatedUser.id, {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      status: updatedUser.status,
+    })
+    const index = users.value.findIndex((u) => u.id === updated.id)
+    if (index !== -1) users.value[index] = updated
   }
 
-  const addSale = (sale: Omit<Sale, 'id'>) => {
-    const newSale: Sale = { ...sale, id: Math.random().toString(36).substr(2, 9) }
-    sales.value.unshift(newSale)
+  const addSale = async (sale: Omit<Sale, 'id'>) => {
+    const newSale = await api.sales.create({
+      customerName: sale.customerName,
+      productName: sale.productName,
+      amount: sale.amount,
+      status: sale.status,
+    })
+    sales.value = [newSale, ...sales.value]
   }
-  const updateSale = (updatedSale: Sale) => {
-    const index = sales.value.findIndex((s) => s.id === updatedSale.id)
-    if (index !== -1) {
-      sales.value[index] = updatedSale
-    }
+  const updateSale = async (updatedSale: Sale) => {
+    const updated = await api.sales.update(updatedSale.id, {
+      customerName: updatedSale.customerName,
+      productName: updatedSale.productName,
+      amount: updatedSale.amount,
+      status: updatedSale.status,
+    })
+    const index = sales.value.findIndex((s) => s.id === updated.id)
+    if (index !== -1) sales.value[index] = updated
   }
-  const deleteSale = (id: string) => {
+  const deleteSale = async (id: string) => {
+    await api.sales.delete(id)
     sales.value = sales.value.filter((s) => s.id !== id)
   }
 
@@ -233,6 +245,7 @@ export const useDataStore = defineStore('data', () => {
     users,
     sales,
     dateRange,
+    initError,
 
     filteredSales,
     totalRevenue,

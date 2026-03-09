@@ -11,14 +11,15 @@ const settingsStore = useSettingsStore()
 const subscriptionStore = useSubscriptionStore()
 const authStore = useAuthStore()
 
-onMounted(() => {
+onMounted(async () => {
   authStore.init()
   if (authStore.isLoggedIn && authStore.user) {
     settingsStore.profile = { name: authStore.user.name, email: authStore.user.email }
   }
   settingsStore.init()
-  dataStore.initData()
-  subscriptionStore.init()
+  if (authStore.isLoggedIn) {
+    await Promise.all([dataStore.initData(), subscriptionStore.init()])
+  }
 })
 </script>
 

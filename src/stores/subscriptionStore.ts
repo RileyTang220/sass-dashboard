@@ -1,11 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { addMonths } from 'date-fns'
 import type { Plan, SubscriptionStatus, Invoice } from '@/types'
 import { generateMockInvoices } from '@/utils/mockData'
-
-const STORAGE_KEY = 'saas_dashboard_subscription'
-const INVOICES_KEY = 'saas_dashboard_invoices'
+import { api, getToken } from '@/api/client'
 
 const PLAN_ORDER: Plan[] = ['Free', 'Pro', 'Enterprise']
 const planIndex = (p: Plan) => PLAN_ORDER.indexOf(p)
@@ -15,28 +13,25 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   const status = ref<SubscriptionStatus>('active')
   const startDate = ref(new Date().toISOString())
   const endDate = ref(addMonths(new Date(), 1).toISOString())
-  const invoices = ref<Invoice[]>(generateMockInvoices())
+  const invoices = ref<Invoice[]>([])
 
-  const init = () => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
-        plan.value = parsed.plan ?? 'Pro'
-        status.value = parsed.status ?? 'active'
-        startDate.value = parsed.startDate ?? startDate.value
-        endDate.value = parsed.endDate ?? endDate.value
-      } catch {
-        // keep defaults
-      }
-    }
-    const storedInvoices = localStorage.getItem(INVOICES_KEY)
-    if (storedInvoices) {
-      try {
-        invoices.value = JSON.parse(storedInvoices)
-      } catch {
-        // keep mock
-      }
+  const init = async () => {
+    if (!getToken()) return
+    try {
+      const [sub, invs] = await Promise.all([
+        api.billing.getSubscription(),
+        api.billing.getInvoices(),
+      ])
+      plan.value = sub.plan as Plan
+      status.value = sub.status as SubscriptionStatus
+      startDate.value = sub.startDate
+      endDate.value = sub.endDate
+      invoices.value = invs.map((inv) => ({
+        ...inv,
+        currency: (inv as Invoice & { currency?: string }).currency ?? 'USD',
+      }))
+    } catch {
+      invoices.value = generateMockInvoices()
     }
   }
 
@@ -57,61 +52,52 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 
   const isCanceled = computed(() => status.value === 'canceled')
 
-  const updateBillingDates = () => {
-    const now = new Date()
-    startDate.value = now.toISOString()
-    endDate.value = addMonths(now, 1).toISOString()
-  }
-
-  const upgradePlan = () => {
+  const upgradePlan = async () => {
     if (!nextPlan.value) return
-    plan.value = nextPlan.value
-    status.value = 'active'
-    updateBillingDates()
-    addInvoice(plan.value, 'paid')
+    try {
+      const sub = await api.billing.updateSubscription('upgrade')
+      plan.value = sub.plan as Plan
+      status.value = sub.status as SubscriptionStatus
+      startDate.value = sub.startDate
+      endDate.value = sub.endDate
+    } catch {
+      // keep local state on error
+    }
   }
 
-  const downgradePlan = () => {
+  const downgradePlan = async () => {
     if (!prevPlan.value) return
-    plan.value = prevPlan.value
-    status.value = 'active'
-    updateBillingDates()
-    addInvoice(plan.value, 'paid')
+    try {
+      const sub = await api.billing.updateSubscription('downgrade')
+      plan.value = sub.plan as Plan
+      status.value = sub.status as SubscriptionStatus
+      startDate.value = sub.startDate
+      endDate.value = sub.endDate
+    } catch {
+      // keep local state on error
+    }
   }
 
-  const addInvoice = (p: Plan, invStatus: Invoice['status']) => {
-    const amounts: Record<Plan, number> = { Free: 0, Pro: 29, Enterprise: 99 }
-    const now = new Date()
-    invoices.value.unshift({
-      id: `inv_${Math.random().toString(36).slice(2)}`,
-      amount: amounts[p],
-      currency: 'USD',
-      date: now.toISOString(),
-      status: invStatus,
-      description: `${p} Plan - ${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
-    })
+  const cancelSubscription = async () => {
+    try {
+      const sub = await api.billing.updateSubscription('cancel')
+      status.value = sub.status as SubscriptionStatus
+      endDate.value = sub.endDate
+    } catch {
+      // keep local state on error
+    }
   }
 
-  const cancelSubscription = () => {
-    status.value = 'canceled'
+  const reactivateSubscription = async () => {
+    try {
+      const sub = await api.billing.updateSubscription('reactivate')
+      status.value = sub.status as SubscriptionStatus
+      startDate.value = sub.startDate
+      endDate.value = sub.endDate
+    } catch {
+      // keep local state on error
+    }
   }
-
-  const reactivateSubscription = () => {
-    status.value = 'active'
-    updateBillingDates()
-  }
-
-  watch(
-    () => ({ plan: plan.value, status: status.value, startDate: startDate.value, endDate: endDate.value }),
-    (s) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
-    },
-    { deep: true }
-  )
-
-  watch(invoices, (val) => {
-    localStorage.setItem(INVOICES_KEY, JSON.stringify(val))
-  }, { deep: true })
 
   return {
     plan,
