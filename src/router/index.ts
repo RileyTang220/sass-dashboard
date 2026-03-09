@@ -8,13 +8,13 @@ const router = createRouter({
     {
       path: '/login',
       name: 'Login',
-      component: () => import('../pages/authlogin.vue'),
+      component: () => import('../pages/auth/Login.vue'),
       meta: { guest: true },
     },
     {
       path: '/register',
       name: 'Register',
-      component: () => import('../pages/authregister.vue'),
+      component: () => import('../pages/auth/Register.vue'),
       meta: { guest: true },
     },
     {
