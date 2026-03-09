@@ -325,11 +325,11 @@ app.get('/api/analytics/overview', authMiddleware, (req, res) => {
 
 // ---------- 5. Billing & Subscription ----------
 
-app.get('/api/billing/subscription', authMiddleware, (req, res) => {
+app.get('/api/billsubscription', authMiddleware, (req, res) => {
   res.json(subscription);
 });
 
-app.patch('/api/billing/subscription', authMiddleware, (req, res) => {
+app.patch('/api/billsubscription', authMiddleware, (req, res) => {
   const { action } = req.body;
 
   if (action === 'upgrade') {
@@ -355,7 +355,7 @@ app.patch('/api/billing/subscription', authMiddleware, (req, res) => {
   res.json(subscription);
 });
 
-app.get('/api/billing/invoices', authMiddleware, (req, res) => {
+app.get('/api/billinvoice', authMiddleware, (req, res) => {
   res.json(invoices);
 });
 
