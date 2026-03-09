@@ -99,7 +99,7 @@ function authMiddleware(req, res, next) {
 
 // ---------- 1. Auth ----------
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/authlogin', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'email and password are required' });
@@ -119,7 +119,7 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/authregister', (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'name, email and password are required' });
@@ -146,7 +146,7 @@ app.post('/api/auth/register', (req, res) => {
   });
 });
 
-app.get('/api/auth/me', authMiddleware, (req, res) => {
+app.get('/api/authme', authMiddleware, (req, res) => {
   res.json(currentUser);
 });
 
@@ -269,7 +269,7 @@ app.delete('/api/sales/:id', authMiddleware, (req, res) => {
   res.status(204).end();
 });
 
-app.get('/api/dashboard/summary', authMiddleware, (req, res) => {
+app.get('/api/dashsummary', authMiddleware, (req, res) => {
   const totalRevenue = sales
     .filter((s) => s.status === 'Completed')
     .reduce((sum, s) => sum + s.amount, 0);
@@ -293,7 +293,7 @@ app.get('/api/dashboard/summary', authMiddleware, (req, res) => {
 
 // ---------- 4. Analytics ----------
 
-app.get('/api/analytics/overview', authMiddleware, (req, res) => {
+app.get('/api/analyticsoverview', authMiddleware, (req, res) => {
   res.json({
     revenueGrowthPercent: 12.5,
     deviceBreakdown: {

@@ -66,16 +66,16 @@ export const api = {
   auth: {
     login: (email: string, password: string) =>
       request<{ token: string; user: { id: string; name: string; email: string } }>(
-        '/api/auth/login',
+        '/api/authlogin',
         { method: 'POST', body: JSON.stringify({ email, password }) }
       ),
     register: (name: string, email: string, password: string) =>
       request<{ token: string; user: { id: string; name: string; email: string } }>(
-        '/api/auth/register',
+        '/api/authregister',
         { method: 'POST', body: JSON.stringify({ name, email, password }) }
       ),
     me: () =>
-      request<{ id: string; name: string; email: string }>('/api/auth/me'),
+      request<{ id: string; name: string; email: string }>('/api/authme'),
   },
 
   users: {
@@ -107,7 +107,7 @@ export const api = {
         activeUsers: number
         conversionRate: number
         recentSales: import('@/types').Sale[]
-      }>('/api/dashboard/summary'),
+      }>('/api/dashsummary'),
   },
 
   analytics: {
@@ -120,7 +120,7 @@ export const api = {
         topProducts: { labels: string[]; data: number[] }
         topCampaigns: { labels: string[]; data: number[] }
         userGrowth: { labels: string[]; data: number[] }
-      }>('/api/analytics/overview'),
+      }>('/api/analyticsoverview'),
   },
 
   billing: {
@@ -131,7 +131,7 @@ export const api = {
         startDate: string
         endDate: string
         isCanceled: boolean
-      }>('/api/billing/subscription'),
+      }>('/api/billsubscription'),
     updateSubscription: (action: 'upgrade' | 'downgrade' | 'cancel' | 'reactivate') =>
       request<{
         plan: string
@@ -139,11 +139,11 @@ export const api = {
         startDate: string
         endDate: string
         isCanceled: boolean
-      }>('/api/billing/subscription', {
+      }>('/api/billsubscription', {
         method: 'PATCH',
         body: JSON.stringify({ action }),
       }),
     getInvoices: () =>
-      request<import('@/types').Invoice[]>('/api/billing/invoices'),
+      request<import('@/types').Invoice[]>('/api/billinvoice'),
   },
 }

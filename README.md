@@ -1,15 +1,7 @@
 # SaaS Analytics Dashboard (Vue 3, Pinia, & 100% Serverless)
 
-> A production-quality, fully responsive SaaS analytics dashboard built with **Vue 3** and **Pinia**. This project demonstrates a complete, feature-rich application that runs **100% serverless** by using browser `localStorage` as a persistent "database."
-
-
-This is a portfolio-ready project designed to showcase mastery of the modern Vue.js ecosystem, component-based architecture, and complex, reactive state management. All data (users, sales, settings) is fetched from and persisted to `localStorage`, making it a full-stack, client-side application.
 
 ## ✨ Core Features
-
-* **⚡ 100% Serverless "Backend"**: All app data (users, sales, profile) is persisted in `localStorage` and managed by Pinia. On boot, the app rehydrates its state from storage.
-
-* **🍍 Global State Management**: A centralized **Pinia** store (`dataStore`, `settingsStore`) manages all application state, making data reactive and available across all components.
 
 * **⚙️ Full CRUD Functionality**:
 
@@ -44,16 +36,6 @@ This is a portfolio-ready project designed to showcase mastery of the modern Vue
   * Fully responsive down to 360px.
 
   * Includes a sliding overlay menu for mobile navigation.
-
-* **🔧 User Settings**: A functional settings page to update user profile information (name, email), which also persists to `localStorage` and updates the UI in real-time.
-
-## 🚀 Architectural Highlights
-
-1. **The `localStorage` Backend**: On app load (`App.vue`), the Pinia stores call an `init()` action. This action checks `localStorage` for existing data. If found, it populates the store. If not, it seeds the store with mock data. A `watch` effect in each store then automatically writes any state change back to `localStorage`.
-
-2. **Global Reactive Data**: Components read from `computed` getters in the store (like `filteredSales`). When the global date-range filter changes, all dependent getters recompute and update the UI instantly.
-
-3. **Component Reusability**: `DataTable.vue` accepts dynamic `columns` & `data`, using named slots to inject custom cell templates.
 
 
 ## 🛠️ Tech Stack
