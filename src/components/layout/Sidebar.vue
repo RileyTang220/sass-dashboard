@@ -2,10 +2,11 @@
 import {
   HomeIcon,
   UsersIcon,
-  ChartBarIcon,
+  FolderIcon,
+  RectangleStackIcon,
+  ViewColumnsIcon,
+  Squares2X2Icon,
   Cog6ToothIcon,
-  DocumentTextIcon,
-  CreditCardIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/vue/24/outline'
 import { RouterLink, useRouter } from 'vue-router'
@@ -13,11 +14,11 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAuthStore } from '@/stores/authStore'
 
 const navigation = [
-  { name: 'Dashboard', to: '/', icon: HomeIcon },
-  { name: 'Users', to: '/users', icon: UsersIcon },
-  { name: 'Sales Records', to: '/sales', icon: DocumentTextIcon },
-  { name: 'Analytics', to: '/analytics', icon: ChartBarIcon },
-  { name: 'Billing', to: '/billing', icon: CreditCardIcon },
+  { name: 'Overview', to: '/', icon: Squares2X2Icon },
+  { name: 'Board', to: '/board', icon: ViewColumnsIcon },
+  { name: 'Projects', to: '/projects', icon: FolderIcon },
+  { name: 'Tasks', to: '/tasks', icon: RectangleStackIcon },
+  { name: 'Members', to: '/members', icon: UsersIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 
@@ -32,19 +33,14 @@ function logout() {
 </script>
 
 <template>
-  <!-- 
-    THIS IS THE FIX:
-    Removed 'hidden' and 'md:flex'.
-    The DefaultLayout now controls visibility.
-  -->
   <aside class="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 flex flex-col transition-colors duration-300">
     <!-- Logo Area -->
     <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
       <div class="flex items-center gap-2 font-bold text-xl tracking-tight text-gray-900 dark:text-white">
         <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-          <ChartBarIcon class="w-5 h-5" />
+          <HomeIcon class="w-5 h-5" />
         </div>
-        <span>SaaS<span class="text-indigo-600">Board</span></span>
+        <span>Team<span class="text-indigo-600">Workspace</span></span>
       </div>
     </div>
 

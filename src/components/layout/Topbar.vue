@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { SunIcon, MoonIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import DateRangeFilter from '@/components/common/DateRangeFilter.vue'
 import NotificationCenter from '@/components/common/NotificationCenter.vue'
@@ -7,13 +8,21 @@ import GlobalSearch from '@/components/common/GlobalSearch.vue'
 import { useSettingsStore } from '@/stores/settingsStore'
 
 const settingsStore = useSettingsStore()
+const route = useRoute()
 const isSearchOpen = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+const handleColorSchemeChange = () => {
+  if (settingsStore.theme === 'system') settingsStore.applyTheme()
+}
 
 onMounted(() => {
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  mq.addEventListener('change', () => {
-    if (settingsStore.theme === 'system') settingsStore.applyTheme()
-  })
+  mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  mediaQuery.addEventListener('change', handleColorSchemeChange)
+})
+
+onUnmounted(() => {
+  mediaQuery?.removeEventListener('change', handleColorSchemeChange)
 })
 </script>
 
@@ -30,7 +39,7 @@ onMounted(() => {
         <Bars3Icon class="w-6 h-6" />
       </button>
       <h1 class="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-        {{ $route.name?.toString().replace('-', ' ') }}
+        {{ route.name?.toString().replace('-', ' ') }}
       </h1>
     </div>
 
@@ -56,7 +65,7 @@ onMounted(() => {
 
       <NotificationCenter />
 
-      <DateRangeFilter />
+      <DateRangeFilter v-if="route.name !== 'Settings'" />
     </div>
 
     <GlobalSearch v-model="isSearchOpen" />

@@ -1,69 +1,88 @@
 <script setup lang="ts">
-import { ref, computed, toRef } from 'vue'; 
-import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
+import { ref, computed, toRef, watch } from 'vue'
+import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 
 // Define what a Column looks like
 interface Column {
-  key: string;
-  label: string;
-  sortable?: boolean;
+  key: string
+  label: string
+  sortable?: boolean
+}
+
+type TableRow = {
+  id?: string | number
+  [key: string]: any
 }
 
 const props = defineProps<{
-  columns: Column[];
-  data: any[];
-}>();
+  columns: Column[]
+  data: TableRow[]
+}>()
 
+const dataRef = toRef(props, 'data')
 
-const dataRef = toRef(props, 'data');
-
-const searchQuery = ref('');
-const currentPage = ref(1);
-const itemsPerPage = 10;
-const sortKey = ref('');
-const sortOrder = ref<'asc' | 'desc'>('asc');
+const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 10
+const sortKey = ref('')
+const sortOrder = ref<'asc' | 'desc'>('asc')
 
 
 const filteredData = computed(() => {
-  let result = [...dataRef.value]; 
+  let result = [...dataRef.value]
 
 
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(item => 
-      Object.values(item).some(val => String(val).toLowerCase().includes(query))
-    );
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter((item) =>
+      Object.values(item).some((val) => String(val).toLowerCase().includes(query))
+    )
   }
 
-  // 2. Sort
   if (sortKey.value) {
     result.sort((a, b) => {
-      const valA = a[sortKey.value];
-      const valB = b[sortKey.value];
-      if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1;
-      return 0;
-    });
+      const valA = a[sortKey.value]
+      const valB = b[sortKey.value]
+      if (valA == null && valB == null) return 0
+      if (valA == null) return sortOrder.value === 'asc' ? -1 : 1
+      if (valB == null) return sortOrder.value === 'asc' ? 1 : -1
+      if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
+      return 0
+    })
   }
 
-  return result;
-});
+  return result
+})
 
 const paginatedData = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  return filteredData.value.slice(start, start + itemsPerPage);
-});
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredData.value.slice(start, start + itemsPerPage)
+})
 
-const totalPages = computed(() => Math.ceil(filteredData.value.length / itemsPerPage));
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredData.value.length / itemsPerPage)))
+
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+watch(
+  filteredData,
+  (items) => {
+    currentPage.value = Math.min(currentPage.value, Math.max(1, Math.ceil(items.length / itemsPerPage)))
+  },
+  { immediate: true }
+)
 
 const sortBy = (key: string) => {
   if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
-    sortKey.value = key;
-    sortOrder.value = 'asc';
+    sortKey.value = key
+    sortOrder.value = 'asc'
   }
-};
+  currentPage.value = 1
+}
 </script>
 
 <template>

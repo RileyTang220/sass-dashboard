@@ -1,13 +1,44 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { User, Sale, DateRange } from '@/types'
-import { generateMockUsers, generateMockSales } from '@/utils/mockData'
-import { isWithinInterval, parseISO, subDays, subMonths, format, startOfMonth, endOfMonth } from 'date-fns'
-import { api, getToken } from '@/api/client'
+import { computed, ref } from 'vue'
+import { format, isWithinInterval, parseISO, startOfDay, subDays } from 'date-fns'
+import type {
+  DateRange,
+  Member,
+  Project,
+  ProjectStatus,
+  TaskActivity,
+  TaskComment,
+  Task,
+  TaskStatus,
+  Workspace,
+  WorkspaceRole,
+} from '@/types'
+import {
+  createActivityId,
+  createCommentId,
+  createMockWorkspaceSeed,
+  createProjectId,
+  createTaskId,
+} from '@/utils/mockData'
+
+type ProjectInput = Pick<Project, 'name' | 'key' | 'description' | 'ownerId' | 'dueDate'> & {
+  memberIds?: string[]
+}
+
+type TaskInput = Pick<
+  Task,
+  'title' | 'description' | 'projectId' | 'assigneeId' | 'priority' | 'type' | 'dueDate'
+> & {
+  status?: TaskStatus
+}
 
 export const useDataStore = defineStore('data', () => {
-  const users = ref<User[]>([])
-  const sales = ref<Sale[]>([])
+  const workspace = ref<Workspace | null>(null)
+  const members = ref<Member[]>([])
+  const projects = ref<Project[]>([])
+  const tasks = ref<Task[]>([])
+  const taskComments = ref<TaskComment[]>([])
+  const taskActivity = ref<TaskActivity[]>([])
   const initError = ref<string | null>(null)
 
   const dateRange = ref<DateRange>({
@@ -18,262 +49,427 @@ export const useDataStore = defineStore('data', () => {
 
   const initData = async () => {
     initError.value = null
-    if (!getToken()) return
     try {
-      const [usersRes, salesRes] = await Promise.all([
-        api.users.list(),
-        api.sales.list(),
-      ])
-      users.value = usersRes
-      sales.value = salesRes
-    } catch (e) {
-      initError.value = e instanceof Error ? e.message : 'Failed to load data'
-      console.warn('API init failed, using mock data:', initError.value)
-      users.value = generateMockUsers(20)
-      sales.value = generateMockSales(100)
+      const seed = createMockWorkspaceSeed()
+      workspace.value = seed.workspace
+      members.value = seed.members
+      projects.value = seed.projects
+      tasks.value = seed.tasks
+      taskComments.value = seed.comments
+      taskActivity.value = seed.activity
+    } catch (error) {
+      initError.value = error instanceof Error ? error.message : 'Failed to load workspace data'
     }
   }
 
-  const filteredSales = computed(() => {
-    return sales.value
-      .filter((sale) => {
-        const saleDate = parseISO(sale.date)
-        return isWithinInterval(saleDate, {
-          start: dateRange.value.start,
-          end: dateRange.value.end,
-        })
+  const tasksInRange = computed(() =>
+    tasks.value.filter((task) => {
+      const updatedAt = parseISO(task.updatedAt)
+      return isWithinInterval(updatedAt, {
+        start: dateRange.value.start,
+        end: dateRange.value.end,
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  })
-
-  const totalRevenue = computed(() => {
-    return filteredSales.value
-      .filter((sale) => sale.status === 'Completed')
-      .reduce((sum, sale) => sum + sale.amount, 0)
-  })
-
-  const recentSales = computed(() => filteredSales.value.slice(0, 5))
-
-  const salesByMonth = computed(() => {
-    const start = dateRange.value.start
-    const end = dateRange.value.end
-    const months: { label: string; start: Date; end: Date }[] = []
-    let d = startOfMonth(start)
-    while (d <= end) {
-      months.push({
-        label: format(d, 'MMM'),
-        start: d,
-        end: endOfMonth(d),
-      })
-      d = subMonths(d, -1)
-    }
-
-    const data = months.map((m) => {
-      return filteredSales.value
-        .filter((s) => s.status === 'Completed')
-        .filter((s) => {
-          const saleDate = parseISO(s.date)
-          return isWithinInterval(saleDate, { start: m.start, end: m.end })
-        })
-        .reduce((sum, s) => sum + s.amount, 0)
     })
-
-    return {
-      labels: months.map((m) => m.label),
-      data,
-    }
-  })
-
-  const completedOrdersCount = computed(
-    () => filteredSales.value.filter((s) => s.status === 'Completed').length
   )
 
-  const averageOrderValue = computed(() => {
-    const n = completedOrdersCount.value
-    return n > 0 ? Math.round((totalRevenue.value / n) * 100) / 100 : 0
+  const openTasks = computed(() => tasks.value.filter((task) => task.status !== 'Done'))
+  const overdueTasks = computed(() =>
+    tasks.value.filter((task) => task.status !== 'Done' && parseISO(task.dueDate) < new Date())
+  )
+  const activeProjects = computed(() =>
+    projects.value.filter((project) => project.status !== 'Completed')
+  )
+  const completedTasksInRange = computed(
+    () => tasksInRange.value.filter((task) => task.status === 'Done').length
+  )
+  const completionRate = computed(() => {
+    if (tasksInRange.value.length === 0) return 0
+    return Math.round((completedTasksInRange.value / tasksInRange.value.length) * 100)
   })
 
-  const previousPeriodRevenue = computed(() => {
-    const start = dateRange.value.start
-    const end = dateRange.value.end
-    const days = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
-    const prevEnd = subDays(start, 1)
-    const prevStart = subDays(prevEnd, days)
-    return sales.value
-      .filter((s) => s.status === 'Completed')
-      .filter((s) => {
-        const saleDate = parseISO(s.date)
-        return isWithinInterval(saleDate, { start: prevStart, end: prevEnd })
+  const tasksByStatus = computed(() => {
+    const base: Record<TaskStatus, number> = {
+      Backlog: 0,
+      'In Progress': 0,
+      'In Review': 0,
+      Done: 0,
+    }
+
+    for (const task of tasks.value) base[task.status] += 1
+    return base
+  })
+
+  const projectsByStatus = computed(() => {
+    const base: Record<ProjectStatus, number> = {
+      'On Track': 0,
+      'At Risk': 0,
+      'Off Track': 0,
+      Completed: 0,
+    }
+
+    for (const project of projects.value) base[project.status] += 1
+    return base
+  })
+
+  const recentActivity = computed(() =>
+    [...tasks.value]
+      .sort((a, b) => parseISO(b.updatedAt).getTime() - parseISO(a.updatedAt).getTime())
+      .slice(0, 6)
+      .map((task) => ({
+        ...task,
+        project: projects.value.find((project) => project.id === task.projectId) ?? null,
+        assignee: members.value.find((member) => member.id === task.assigneeId) ?? null,
+      }))
+  )
+
+  const upcomingTasks = computed(() =>
+    taskRows.value
+      .filter((task) => task.status !== 'Done')
+      .sort((a, b) => parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime())
+      .slice(0, 6)
+  )
+
+  const memberWorkload = computed(() =>
+    members.value
+      .map((member) => {
+        const assignedOpenTasks = tasks.value.filter(
+          (task) => task.assigneeId === member.id && task.status !== 'Done'
+        )
+
+        return {
+          ...member,
+          openTaskCount: assignedOpenTasks.length,
+          inProgressCount: assignedOpenTasks.filter((task) => task.status === 'In Progress').length,
+        }
       })
-      .reduce((sum, s) => sum + s.amount, 0)
-  })
-
-  const revenueGrowthPercent = computed(() => {
-    if (previousPeriodRevenue.value === 0) return 0
-    return (
-      Math.round(
-        ((totalRevenue.value - previousPeriodRevenue.value) / previousPeriodRevenue.value) * 1000
-      ) / 10
-    )
-  })
-
-  const activeUsersCount = computed(
-    () => users.value.filter((u) => u.status === 'Active').length
+      .sort((a, b) => b.openTaskCount - a.openTaskCount)
   )
 
-  const conversionRate = computed(() => {
-    const base = 3.2
-    const trend = revenueGrowthPercent.value > 0 ? 0.4 : -0.2
-    return Math.round((base + trend) * 10) / 10
-  })
+  const projectRows = computed(() =>
+    projects.value.map((project) => ({
+      ...project,
+      owner: members.value.find((member) => member.id === project.ownerId) ?? null,
+      taskCount: tasks.value.filter((task) => task.projectId === project.id).length,
+      completedTaskCount: tasks.value.filter(
+        (task) => task.projectId === project.id && task.status === 'Done'
+      ).length,
+    }))
+  )
 
-  const conversionRateTrendUp = computed(() => revenueGrowthPercent.value >= 0)
+  const taskRows = computed(() =>
+    tasks.value
+      .map((task) => ({
+        ...task,
+        project: projects.value.find((project) => project.id === task.projectId) ?? null,
+        assignee: members.value.find((member) => member.id === task.assigneeId) ?? null,
+        reporter: members.value.find((member) => member.id === task.reporterId) ?? null,
+      }))
+      .sort((a, b) => parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime())
+  )
 
-  const deviceBreakdown = computed(() => ({
-    labels: ['Desktop', 'Mobile', 'Tablet'],
-    data: [65, 25, 10],
-  }))
+  const memberRows = computed(() =>
+    members.value.map((member) => ({
+      ...member,
+      projectCount: projects.value.filter((project) => project.memberIds.includes(member.id)).length,
+      openTaskCount: tasks.value.filter(
+        (task) => task.assigneeId === member.id && task.status !== 'Done'
+      ).length,
+    }))
+  )
 
-  const trafficSources = computed(() => ({
-    labels: ['Organic Search', 'Direct', 'Social Media', 'Referral', 'Paid Ads'],
-    data: [35, 28, 18, 12, 7],
-  }))
+  const activityTrend = computed(() => {
+    const days: { label: string; total: number; done: number }[] = []
+    for (let offset = 6; offset >= 0; offset -= 1) {
+      const currentDay = subDays(new Date(), offset)
+      const dayTasks = tasks.value.filter(
+        (task) => format(parseISO(task.updatedAt), 'yyyy-MM-dd') === format(currentDay, 'yyyy-MM-dd')
+      )
 
-  const conversionFunnel = computed(() => ({
-    labels: ['Visit', 'Sign Up', 'Trial', 'Converted'],
-    data: [1000, 420, 180, 58],
-  }))
-
-  const topProducts = computed(() => {
-    const grouped = filteredSales.value
-      .filter((s) => s.status === 'Completed')
-      .reduce((acc, s) => {
-        acc[s.productName] = (acc[s.productName] || 0) + s.amount
-        return acc
-      }, {} as Record<string, number>)
-    const sorted = Object.entries(grouped)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-    return { labels: sorted.map(([k]) => k), data: sorted.map(([, v]) => v) }
-  })
-
-  const topCampaigns = computed(() => ({
-    labels: ['Summer Sale 2024', 'Black Friday', 'Referral Program', 'Email Campaign', 'Paid Search'],
-    data: [1240, 980, 650, 420, 380],
-  }))
-
-  const userGrowth = computed(() => {
-    const start = dateRange.value.start
-    const end = dateRange.value.end
-    const months: { label: string; start: Date; end: Date }[] = []
-    let d = startOfMonth(start)
-    while (d <= end) {
-      months.push({ label: format(d, 'MMM yyyy'), start: d, end: endOfMonth(d) })
-      d = subMonths(d, -1)
+      days.push({
+        label: format(currentDay, 'MMM d'),
+        total: dayTasks.length,
+        done: dayTasks.filter((task) => task.status === 'Done').length,
+      })
     }
-    const data = months.map((m) =>
-      users.value.filter((u) => {
-        const joined = parseISO(u.joinedDate)
-        return isWithinInterval(joined, { start: m.start, end: m.end })
-      }).length
-    )
-    const cumulative = data.reduce<number[]>((acc, n, i) => {
-      acc.push((acc[i - 1] ?? 0) + n)
-      return acc
-    }, [])
-    const totalBeforeStart = users.value.filter((u) => {
-      const joined = parseISO(u.joinedDate)
-      return joined < start
-    }).length
-    const labels = months.map((m) => m.label)
-    const cumulativeData = cumulative.map((c, i) => totalBeforeStart + c)
-    return { labels, data: cumulativeData }
+    return days
   })
 
   const setDateRange = (start: Date, end: Date, label: string) => {
     dateRange.value = { start, end, label }
   }
 
-  const addUser = async (user: Omit<User, 'id' | 'joinedDate'>) => {
-    const newUser = await api.users.create({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    })
-    users.value = [newUser, ...users.value]
-  }
-  const deleteUser = async (id: string) => {
-    await api.users.delete(id)
-    users.value = users.value.filter((u) => u.id !== id)
-  }
-  const updateUser = async (updatedUser: User) => {
-    const updated = await api.users.update(updatedUser.id, {
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      status: updatedUser.status,
-    })
-    const index = users.value.findIndex((u) => u.id === updated.id)
-    if (index !== -1) users.value[index] = updated
+  const getTaskById = (taskId: string) =>
+    taskRows.value.find((task) => task.id === taskId) ?? null
+
+  const getTaskComments = (taskId: string) =>
+    taskComments.value
+      .filter((comment) => comment.taskId === taskId)
+      .map((comment) => ({
+        ...comment,
+        author: members.value.find((member) => member.id === comment.authorId) ?? null,
+      }))
+      .sort((a, b) => parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime())
+
+  const getTaskActivity = (taskId: string) =>
+    taskActivity.value
+      .filter((entry) => entry.taskId === taskId)
+      .map((entry) => ({
+        ...entry,
+        actor: members.value.find((member) => member.id === entry.actorId) ?? null,
+      }))
+      .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
+
+  const getProjectById = (projectId: string) =>
+    projectRows.value.find((project) => project.id === projectId) ?? null
+
+  const getProjectTasks = (projectId: string) =>
+    taskRows.value.filter((task) => task.projectId === projectId)
+
+  const getProjectMembers = (projectId: string) => {
+    const project = projects.value.find((entry) => entry.id === projectId)
+    if (!project) return []
+    return members.value.filter((member) => project.memberIds.includes(member.id))
   }
 
-  const addSale = async (sale: Omit<Sale, 'id'>) => {
-    const newSale = await api.sales.create({
-      customerName: sale.customerName,
-      productName: sale.productName,
-      amount: sale.amount,
-      status: sale.status,
+  const syncProfile = (name: string, email: string) => {
+    const existing = members.value.find((member) => member.email === email)
+    if (existing) {
+      existing.name = name
+      existing.avatar = avatarFor(name)
+      return
+    }
+
+    members.value.unshift({
+      id: `m_${Math.random().toString(36).slice(2, 10)}`,
+      name,
+      email,
+      avatar: avatarFor(name),
+      role: 'Owner',
+      status: 'Active',
+      joinedAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
     })
-    sales.value = [newSale, ...sales.value]
   }
-  const updateSale = async (updatedSale: Sale) => {
-    const updated = await api.sales.update(updatedSale.id, {
-      customerName: updatedSale.customerName,
-      productName: updatedSale.productName,
-      amount: updatedSale.amount,
-      status: updatedSale.status,
+
+  const addProject = (input: ProjectInput) => {
+    projects.value.unshift({
+      id: createProjectId(),
+      name: input.name,
+      key: input.key.toUpperCase(),
+      description: input.description,
+      status: 'On Track',
+      progress: 0,
+      ownerId: input.ownerId,
+      memberIds: input.memberIds?.length ? input.memberIds : [input.ownerId],
+      dueDate: input.dueDate,
+      updatedAt: new Date().toISOString(),
     })
-    const index = sales.value.findIndex((s) => s.id === updated.id)
-    if (index !== -1) sales.value[index] = updated
   }
-  const deleteSale = async (id: string) => {
-    await api.sales.delete(id)
-    sales.value = sales.value.filter((s) => s.id !== id)
+
+  const deleteProject = (projectId: string) => {
+    projects.value = projects.value.filter((project) => project.id !== projectId)
+    tasks.value = tasks.value.filter((task) => task.projectId !== projectId)
+  }
+
+  const addTask = (input: TaskInput) => {
+    const now = new Date().toISOString()
+    const newTask = {
+      id: createTaskId(),
+      title: input.title,
+      description: input.description,
+      projectId: input.projectId,
+      assigneeId: input.assigneeId,
+      reporterId: input.assigneeId,
+      status: input.status ?? 'Backlog',
+      priority: input.priority,
+      type: input.type,
+      dueDate: input.dueDate,
+      createdAt: now,
+      updatedAt: now,
+    }
+    tasks.value.unshift(newTask)
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId: newTask.id,
+      actorId: input.assigneeId,
+      message: 'Created task',
+      createdAt: now,
+    })
+    touchProject(input.projectId)
+  }
+
+  const updateTaskStatus = (taskId: string, status: TaskStatus) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    if (!task) return
+    task.status = status
+    task.updatedAt = new Date().toISOString()
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId,
+      actorId: task.assigneeId,
+      message: `Changed status to ${status}`,
+      createdAt: task.updatedAt,
+    })
+    touchProject(task.projectId)
+  }
+
+  const updateTaskAssignee = (taskId: string, assigneeId: string) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    if (!task) return
+    task.assigneeId = assigneeId
+    task.updatedAt = new Date().toISOString()
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId,
+      actorId: assigneeId,
+      message: 'Updated assignee',
+      createdAt: task.updatedAt,
+    })
+    touchProject(task.projectId)
+  }
+
+  const updateTaskProject = (taskId: string, projectId: string) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    if (!task || task.projectId === projectId) return
+    const previousProjectId = task.projectId
+    task.projectId = projectId
+    task.updatedAt = new Date().toISOString()
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId,
+      actorId: task.assigneeId,
+      message: 'Moved task to another project',
+      createdAt: task.updatedAt,
+    })
+    touchProject(previousProjectId)
+    touchProject(projectId)
+  }
+
+  const updateTaskDescription = (taskId: string, description: string) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    if (!task) return
+    task.description = description
+    task.updatedAt = new Date().toISOString()
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId,
+      actorId: task.assigneeId,
+      message: 'Updated task description',
+      createdAt: task.updatedAt,
+    })
+  }
+
+  const addTaskComment = (taskId: string, authorId: string, body: string) => {
+    const now = new Date().toISOString()
+    taskComments.value.push({
+      id: createCommentId(),
+      taskId,
+      authorId,
+      body,
+      createdAt: now,
+    })
+    taskActivity.value.unshift({
+      id: createActivityId(),
+      taskId,
+      actorId: authorId,
+      message: 'Added a comment',
+      createdAt: now,
+    })
+  }
+
+  const deleteTask = (taskId: string) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    tasks.value = tasks.value.filter((entry) => entry.id !== taskId)
+    taskComments.value = taskComments.value.filter((entry) => entry.taskId !== taskId)
+    taskActivity.value = taskActivity.value.filter((entry) => entry.taskId !== taskId)
+    if (task) touchProject(task.projectId)
+  }
+
+  const updateMemberRole = (memberId: string, role: WorkspaceRole) => {
+    const member = members.value.find((entry) => entry.id === memberId)
+    if (member) member.role = role
+  }
+
+  const touchProject = (projectId: string) => {
+    const project = projects.value.find((entry) => entry.id === projectId)
+    if (!project) return
+
+    const relatedTasks = tasks.value.filter((task) => task.projectId === projectId)
+    const doneCount = relatedTasks.filter((task) => task.status === 'Done').length
+    project.progress = relatedTasks.length === 0 ? 0 : Math.round((doneCount / relatedTasks.length) * 100)
+    project.updatedAt = new Date().toISOString()
+
+    if (project.progress === 100) {
+      project.status = 'Completed'
+      return
+    }
+
+    const today = startOfDay(new Date()).getTime()
+    const hasCriticalOverdueTask = relatedTasks.some(
+      (task) =>
+        task.priority === 'Critical' &&
+        task.status !== 'Done' &&
+        parseISO(task.dueDate).getTime() < today
+    )
+
+    if (hasCriticalOverdueTask) {
+      project.status = 'Off Track'
+      return
+    }
+
+    const hasHighPriorityWork = relatedTasks.some(
+      (task) => task.priority === 'High' && task.status !== 'Done'
+    )
+
+    project.status = hasHighPriorityWork ? 'At Risk' : 'On Track'
   }
 
   return {
-    users,
-    sales,
-    dateRange,
+    workspace,
+    members,
+    projects,
+    tasks,
+    taskComments,
+    taskActivity,
     initError,
-
-    filteredSales,
-    totalRevenue,
-    recentSales,
-    salesByMonth,
-    completedOrdersCount,
-    averageOrderValue,
-    previousPeriodRevenue,
-    revenueGrowthPercent,
-    activeUsersCount,
-    conversionRate,
-    conversionRateTrendUp,
-    deviceBreakdown,
-    trafficSources,
-    conversionFunnel,
-    topProducts,
-    topCampaigns,
-    userGrowth,
-
+    dateRange,
+    tasksInRange,
+    openTasks,
+    overdueTasks,
+    activeProjects,
+    completedTasksInRange,
+    completionRate,
+    tasksByStatus,
+    projectsByStatus,
+    upcomingTasks,
+    recentActivity,
+    memberWorkload,
+    projectRows,
+    taskRows,
+    memberRows,
+    activityTrend,
+    getProjectById,
+    getProjectTasks,
+    getProjectMembers,
+    getTaskById,
+    getTaskComments,
+    getTaskActivity,
     initData,
     setDateRange,
-
-    addUser,
-    deleteUser,
-    updateUser,
-
-    addSale,
-    updateSale,
-    deleteSale,
+    syncProfile,
+    addProject,
+    deleteProject,
+    addTask,
+    updateTaskStatus,
+    updateTaskAssignee,
+    updateTaskProject,
+    updateTaskDescription,
+    addTaskComment,
+    deleteTask,
+    updateMemberRole,
   }
 })
+
+function avatarFor(name: string) {
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1d4ed8&color=ffffff`
+}

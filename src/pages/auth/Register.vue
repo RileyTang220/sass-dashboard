@@ -4,14 +4,12 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useDataStore } from '@/stores/dataStore'
-import { useSubscriptionStore } from '@/stores/subscriptionStore'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 const dataStore = useDataStore()
-const subscriptionStore = useSubscriptionStore()
 const toast = useToast()
 
 const loading = ref(false)
@@ -61,7 +59,8 @@ async function onSubmit() {
         name: authStore.user!.name,
         email: authStore.user!.email,
       }
-      await Promise.all([dataStore.initData(), subscriptionStore.init()])
+      await dataStore.initData()
+      dataStore.syncProfile(authStore.user!.name, authStore.user!.email)
       toast.success('Account created. Welcome!')
       await router.replace('/')
     } else {
@@ -78,13 +77,13 @@ async function onSubmit() {
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <router-link to="/" class="inline-flex items-center gap-2 text-gray-900 dark:text-white font-bold text-xl">
-          <span class="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white">S</span>
-          SaaSBoard
+          <span class="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white">T</span>
+          Team Workspace
         </router-link>
       </div>
       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl p-8">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create account</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Register to get started.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Create a shared workspace for your team.</p>
 
         <form @submit.prevent="onSubmit" class="space-y-5">
           <div>

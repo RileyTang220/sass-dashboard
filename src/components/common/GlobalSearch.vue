@@ -10,9 +10,10 @@ import {
 import {
   MagnifyingGlassIcon,
   UserIcon,
-  DocumentTextIcon,
   HomeIcon,
-  ChartBarIcon,
+  FolderIcon,
+  RectangleStackIcon,
+  Cog6ToothIcon,
   ArrowRightIcon,
 } from '@heroicons/vue/24/outline'
 import { useDataStore } from '@/stores/dataStore'
@@ -32,7 +33,7 @@ const query = ref('')
 const selectedIndex = ref(0)
 
 type SearchResult = {
-  type: 'user' | 'sale' | 'nav'
+  type: 'member' | 'task' | 'project' | 'nav'
   id?: string
   title: string
   subtitle?: string
@@ -44,52 +45,68 @@ const searchResults = computed<SearchResult[]>(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) {
     return [
-      { type: 'nav', title: 'Dashboard', path: '/', icon: HomeIcon },
-      { type: 'nav', title: 'Users', path: '/users', icon: UserIcon },
-      { type: 'nav', title: 'Sales', path: '/sales', icon: DocumentTextIcon },
-      { type: 'nav', title: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+      { type: 'nav', title: 'Overview', path: '/', icon: HomeIcon },
+      { type: 'nav', title: 'Projects', path: '/projects', icon: FolderIcon },
+      { type: 'nav', title: 'Tasks', path: '/tasks', icon: RectangleStackIcon },
+      { type: 'nav', title: 'Members', path: '/members', icon: UserIcon },
     ]
   }
 
   const results: SearchResult[] = []
 
-  dataStore.users.forEach((u) => {
-    if (
-      u.name.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q)
-    ) {
+  dataStore.memberRows.forEach((member) => {
+    if (member.name.toLowerCase().includes(q) || member.email.toLowerCase().includes(q)) {
       results.push({
-        type: 'user',
-        id: u.id,
-        title: u.name,
-        subtitle: u.email,
-        path: '/users',
+        type: 'member',
+        id: member.id,
+        title: member.name,
+        subtitle: `${member.role} · ${member.email}`,
+        path: '/members',
         icon: UserIcon,
       })
     }
   })
 
-  dataStore.sales.forEach((s) => {
+  dataStore.projectRows.forEach((project) => {
     if (
-      s.customerName.toLowerCase().includes(q) ||
-      s.productName.toLowerCase().includes(q)
+      project.name.toLowerCase().includes(q) ||
+      project.key.toLowerCase().includes(q) ||
+      project.description.toLowerCase().includes(q)
     ) {
       results.push({
-        type: 'sale',
-        id: s.id,
-        title: s.customerName,
-        subtitle: `${s.productName} - $${s.amount}`,
-        path: '/sales',
-        icon: DocumentTextIcon,
+        type: 'project',
+        id: project.id,
+        title: `${project.key} · ${project.name}`,
+        subtitle: `${project.status} · ${project.progress}% complete`,
+        path: `/projects/${project.id}`,
+        icon: FolderIcon,
+      })
+    }
+  })
+
+  dataStore.taskRows.forEach((task) => {
+    if (
+      task.title.toLowerCase().includes(q) ||
+      task.description.toLowerCase().includes(q) ||
+      task.project?.name.toLowerCase().includes(q)
+    ) {
+      results.push({
+        type: 'task',
+        id: task.id,
+        title: task.title,
+        subtitle: `${task.project?.name ?? 'No project'} · ${task.status}`,
+        path: `/tasks/${task.id}`,
+        icon: RectangleStackIcon,
       })
     }
   })
 
   const navItems = [
-    { title: 'Dashboard', path: '/', icon: HomeIcon },
-    { title: 'Users', path: '/users', icon: UserIcon },
-    { title: 'Sales', path: '/sales', icon: DocumentTextIcon },
-    { title: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+    { title: 'Overview', path: '/', icon: HomeIcon },
+    { title: 'Projects', path: '/projects', icon: FolderIcon },
+    { title: 'Tasks', path: '/tasks', icon: RectangleStackIcon },
+    { title: 'Members', path: '/members', icon: UserIcon },
+    { title: 'Settings', path: '/settings', icon: Cog6ToothIcon },
   ]
 
   navItems.forEach((item) => {
@@ -197,7 +214,7 @@ onUnmounted(() => {
                   id="global-search-input"
                   v-model="query"
                   type="text"
-                  placeholder="Search users, sales, pages..."
+                  placeholder="Search projects, tasks, members, and pages..."
                   class="flex-1 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none"
                   @keydown="handleKeydown"
                 />
