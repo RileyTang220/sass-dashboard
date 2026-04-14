@@ -98,6 +98,10 @@ const stats = computed(() => [
 ])
 
 const openCreateModal = () => {
+  if (!store.canCreateTasks) {
+    toast.error('Only owners, admins, and members can create tasks')
+    return
+  }
   taskForm.title = ''
   taskForm.description = ''
   taskForm.projectId = store.projects[0]?.id ?? ''
@@ -109,38 +113,59 @@ const openCreateModal = () => {
 }
 
 const submitTask = () => {
-  store.addTask({
-    title: taskForm.title,
-    description: taskForm.description,
-    projectId: taskForm.projectId,
-    assigneeId: taskForm.assigneeId,
-    priority: taskForm.priority,
-    type: taskForm.type,
-    dueDate: new Date(taskForm.dueDate).toISOString(),
-  })
-  isCreateModalOpen.value = false
-  toast.success('Task created')
+  try {
+    store.addTask({
+      title: taskForm.title,
+      description: taskForm.description,
+      projectId: taskForm.projectId,
+      assigneeId: taskForm.assigneeId,
+      priority: taskForm.priority,
+      type: taskForm.type,
+      dueDate: new Date(taskForm.dueDate).toISOString(),
+    })
+    isCreateModalOpen.value = false
+    toast.success('Task created')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task creation failed')
+  }
 }
 
 const updateAssignee = (taskId: string | number | undefined, assigneeId: string) => {
   if (taskId == null) return
-  store.updateTaskAssignee(String(taskId), assigneeId)
-  toast.success('Assignee updated')
+  try {
+    store.updateTaskAssignee(String(taskId), assigneeId)
+    toast.success('Assignee updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Assignee update failed')
+  }
 }
 
 const updateProject = (taskId: string | number | undefined, projectId: string) => {
   if (taskId == null) return
-  store.updateTaskProject(String(taskId), projectId)
-  toast.success('Task moved')
+  try {
+    store.updateTaskProject(String(taskId), projectId)
+    toast.success('Task moved')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task move failed')
+  }
 }
 
 const updateStatus = (taskId: string | number | undefined, status: string) => {
   if (taskId == null) return
-  store.updateTaskStatus(String(taskId), status as TaskStatus)
-  toast.success('Task updated')
+  try {
+    store.updateTaskStatus(String(taskId), status as TaskStatus)
+    toast.success('Task updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task update failed')
+  }
 }
 
 const openDeleteModal = (id: string | number | undefined) => {
+  if (id == null) return
+  if (!store.canEditTask(String(id))) {
+    toast.error('You do not have permission to delete this task')
+    return
+  }
   if (!id) return
   taskIdToDelete.value = String(id)
   isDeleteModalOpen.value = true
@@ -148,9 +173,13 @@ const openDeleteModal = (id: string | number | undefined) => {
 
 const confirmDelete = () => {
   if (!taskIdToDelete.value) return
-  store.deleteTask(taskIdToDelete.value)
-  taskIdToDelete.value = null
-  toast.success('Task removed')
+  try {
+    store.deleteTask(taskIdToDelete.value)
+    taskIdToDelete.value = null
+    toast.success('Task removed')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task deletion failed')
+  }
 }
 
 const clearFilters = () => {
@@ -187,7 +216,9 @@ watch(
       </div>
       <button
         @click="openCreateModal"
+        :disabled="!store.canCreateTasks"
         class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+        :class="{ 'cursor-not-allowed opacity-50 hover:bg-indigo-600': !store.canCreateTasks }"
       >
         <PlusIcon class="h-5 w-5" />
         New Task
@@ -239,6 +270,7 @@ watch(
         <select
           :value="item.projectId"
           class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          :disabled="!store.canEditTask(String(item.id))"
           @change="updateProject(item.id, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="project in store.projects" :key="project.id" :value="project.id">{{ project.name }}</option>
@@ -249,6 +281,7 @@ watch(
         <select
           :value="item.assigneeId"
           class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          :disabled="!store.canEditTask(String(item.id))"
           @change="updateAssignee(item.id, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="member in store.members" :key="member.id" :value="member.id">{{ member.name }}</option>
@@ -276,6 +309,7 @@ watch(
         <select
           :value="item.status"
           class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          :disabled="!store.canEditTask(String(item.id))"
           @change="updateStatus(item.id, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="status in taskStatuses" :key="status" :value="status">{{ status }}</option>
@@ -289,7 +323,9 @@ watch(
       <template #actions-cell="{ item }">
         <button
           @click="openDeleteModal(item.id)"
+          :disabled="!store.canEditTask(String(item.id))"
           class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+          :class="{ 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-gray-400 dark:hover:bg-transparent': !store.canEditTask(String(item.id)) }"
           title="Delete task"
         >
           <TrashIcon class="h-5 w-5" />

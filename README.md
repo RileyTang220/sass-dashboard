@@ -1,75 +1,181 @@
-# SaaS Analytics Dashboard (Vue 3, Pinia, & 100% Serverless)
+# Team Workspace SaaS Dashboard
 
+A Vue 3 + TypeScript SaaS workspace app inspired by Jira-style collaboration flows.
 
-## ✨ Core Features
+This project has evolved from an analytics dashboard into a **team collaboration workspace** with:
+- authentication
+- project and task lifecycle management
+- board and detail views
+- member role management
+- global search
+- notification center
 
-* **⚙️ Full CRUD Functionality**:
+The current implementation is mock-data driven for domain entities (workspace/projects/tasks), while auth still uses a mock API.
 
-  * **Users Management**: Full Create, Read, Update, and Delete functionality for users.
+---
 
-  * **Sales Management**: Full Create, Read, Update, and Delete functionality for sales records.
+## Product Scope (Current)
 
-* **📊 Interactive Data Charts**:
+### Auth
+- Login and register flows
+- Route guards for guest-only and authenticated routes
+- Local token persistence
 
-  * **Line Chart**: Revenue over time on the main dashboard.
+### Workspace Core
+- Workspace overview metrics
+- Project list + project detail
+- Task list + task detail
+- Board view (status-column workflow)
+- Member list + role update
+- Settings (profile/theme/workspace metadata)
 
-  * **Bar Chart**: Monthly revenue breakdown on the Analytics page.
+### Task Flow (Phase 3)
+- Task status updates (`Backlog` / `In Progress` / `In Review` / `Done`)
+- Assignee updates
+- Project reassignment
+- Task description editing
+- Task comments and activity timeline (mocked, persisted in client state)
 
-  * **Donut Chart**: Device breakdown on the Analytics page.
+---
 
-* **🔑 Global Date-Range Filter**: A global filter in the topbar that *reactively* updates all relevant components (stat cards, charts, and tables) across the entire application.
+## Tech Stack
 
-* **📄 Reusable Components**:
+- Vue 3 (Composition API)
+- TypeScript
+- Vite
+- Pinia
+- Vue Router
+- Tailwind CSS
+- Headless UI
+- Heroicons
+- date-fns
+- Express (mock auth/API server)
 
-  * **`DataTable.vue`**: A powerful, generic table component with sorting, searching, and pagination.
+---
 
-  * **`BaseModal.vue`**: A beautiful, accessible modal (using Headless UI) reused for both "Add" and "Edit" forms.
+## Architecture Overview
 
-  * **`ConfirmModal.vue`**: A reusable confirmation modal for all "Delete" actions.
+### Frontend
+- `src/stores/dataStore.ts` is the central workspace domain store
+- Domain is seeded from `src/utils/mockData.ts`
+- Main domain types are in `src/types/index.ts`
+- Shared layout: sidebar + topbar + routed content
 
-* **📥 Client-Side CSV Export**: An "Export CSV" feature on the Sales page that generates and downloads a CSV file from the client-side data.
+### API Layer
+- `src/api/client.ts` currently exposes auth API calls only
+- Dev default base URL: `http://localhost:4000`
+- Prod default base URL: same-origin (`/api/*`)
 
-* **📱 Modern, Responsive UI**:
+### Backend Mock
+- `mock-server/server.cjs` contains in-memory Express endpoints
+- `api/[[...path]].js` allows Vercel serverless routing to reuse the same mock server
 
-  * Styled with **TailwindCSS** for a "Linear/Vercel" aesthetic.
+---
 
-  * Fully responsive down to 360px.
+## Routes
 
-  * Includes a sliding overlay menu for mobile navigation.
+### Public
+- `/login`
+- `/register`
 
+### Authenticated
+- `/` (Overview)
+- `/board`
+- `/projects`
+- `/projects/:id`
+- `/tasks`
+- `/tasks/:id`
+- `/members`
+- `/settings`
 
-## 🛠️ Tech Stack
+---
 
-* Vue 3 (Composition API)
-* Vite
-* TypeScript
-* Pinia
-* Vue Router
-* TailwindCSS
-* Headless UI
-* Chart.js + vue-chartjs
-* date-fns
+## Data Model
 
-## 📦 Getting Started
+Defined in `src/types/index.ts`:
+
+- `Workspace`
+- `Member`
+- `Project`
+- `Task`
+- `TaskComment`
+- `TaskActivity`
+
+Key enums:
+- `WorkspaceRole`
+- `ProjectStatus`
+- `TaskStatus`
+- `TaskPriority`
+- `TaskType`
+
+---
+
+## Project Structure
+
+```text
+src/
+  api/
+    client.ts
+  components/
+    common/
+    layout/
+  pages/
+    auth/
+    Overview.vue
+    Board.vue
+    Projects.vue
+    ProjectDetail.vue
+    Tasks.vue
+    TaskDetail.vue
+    Members.vue
+    Settings.vue
+  router/
+    index.ts
+  stores/
+    authStore.ts
+    dataStore.ts
+    settingsStore.ts
+    notificationStore.ts
+    toastStore.ts
+  types/
+    index.ts
+  utils/
+    mockData.ts
+```
+
+---
+
+## Getting Started
 
 ### Prerequisites
-* Node.js 18+
-* npm or yarn
+- Node.js `^20.19.0` or `>=22.12.0`
+- npm
 
-### Installation
+### Install
 
 ```bash
-cd my-saas-dashboard
 npm install
 ```
 
-### Running the Project
+### Run Frontend
 
 ```bash
 npm run dev
 ```
 
-Visit: `http://localhost:5173`
+Default app URL: `http://localhost:5173`
+
+### Run Mock Auth API (Recommended for login/register)
+
+In another terminal:
+
+```bash
+cd mock-server
+npm install
+npm start
+```
+
+Default API URL: `http://localhost:4000`
 
 ### Build
 
@@ -77,9 +183,32 @@ Visit: `http://localhost:5173`
 npm run build
 ```
 
-Output goes to the `dist/` folder.
+---
 
+## Available Scripts
+
+- `npm run dev` – start Vite dev server
+- `npm run build` – type-check + production build
+- `npm run preview` – preview built app
+- `npm run type-check` – run `vue-tsc`
+- `npm run lint` – run ESLint with `--fix`
+- `npm run format` – run Prettier on `src/`
 
 ---
 
+## Notes and Current Limitations
 
+- Workspace/project/task domain data is currently seeded locally (no persistent backend for collaboration entities yet).
+- Comments and activity timeline are client-side state only.
+- Authorization is role-labeled in UI/store but not yet enforced as strict permission gates.
+- Board interactions are action-based (move buttons), not drag-and-drop yet.
+
+---
+
+## Suggested Next Steps
+
+1. Implement role-based authorization policies (action-level guards).
+2. Add persistent backend APIs for projects/tasks/comments/activity.
+3. Add real-time updates (WebSocket/SSE) for task and board changes.
+4. Introduce dashboard widget configuration persistence per user/workspace.
+5. Add tests for store logic and route guards.

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { format, isWithinInterval, parseISO, startOfDay, subDays } from 'date-fns'
+import { useAuthStore } from '@/stores/authStore'
 import type {
   DateRange,
   Member,
@@ -33,6 +34,7 @@ type TaskInput = Pick<
 }
 
 export const useDataStore = defineStore('data', () => {
+  const authStore = useAuthStore()
   const workspace = ref<Workspace | null>(null)
   const members = ref<Member[]>([])
   const projects = ref<Project[]>([])
@@ -61,6 +63,16 @@ export const useDataStore = defineStore('data', () => {
       initError.value = error instanceof Error ? error.message : 'Failed to load workspace data'
     }
   }
+
+  const currentMember = computed(
+    () => members.value.find((member) => member.email === authStore.user?.email) ?? null
+  )
+
+  const currentRole = computed<WorkspaceRole>(() => currentMember.value?.role ?? 'Guest')
+  const canManageProjects = computed(() => ['Owner', 'Admin'].includes(currentRole.value))
+  const canManageMembers = computed(() => ['Owner', 'Admin'].includes(currentRole.value))
+  const canCreateTasks = computed(() => ['Owner', 'Admin', 'Member'].includes(currentRole.value))
+  const canCommentOnTasks = computed(() => ['Owner', 'Admin', 'Member'].includes(currentRole.value))
 
   const tasksInRange = computed(() =>
     tasks.value.filter((task) => {
@@ -219,6 +231,14 @@ export const useDataStore = defineStore('data', () => {
       }))
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
 
+  const canEditTask = (taskId: string) => {
+    const task = tasks.value.find((entry) => entry.id === taskId)
+    if (!task || !currentMember.value) return false
+    if (currentRole.value === 'Owner' || currentRole.value === 'Admin') return true
+    if (currentRole.value === 'Guest') return false
+    return task.assigneeId === currentMember.value.id || task.reporterId === currentMember.value.id
+  }
+
   const getProjectById = (projectId: string) =>
     projectRows.value.find((project) => project.id === projectId) ?? null
 
@@ -252,6 +272,7 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const addProject = (input: ProjectInput) => {
+    assertPermission(canManageProjects.value, 'Only owners and admins can create projects')
     projects.value.unshift({
       id: createProjectId(),
       name: input.name,
@@ -267,12 +288,15 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const deleteProject = (projectId: string) => {
+    assertPermission(canManageProjects.value, 'Only owners and admins can delete projects')
     projects.value = projects.value.filter((project) => project.id !== projectId)
     tasks.value = tasks.value.filter((task) => task.projectId !== projectId)
   }
 
   const addTask = (input: TaskInput) => {
+    assertPermission(canCreateTasks.value, 'Only owners, admins, and members can create tasks')
     const now = new Date().toISOString()
+    const actorId = currentMember.value?.id ?? input.assigneeId
     const newTask = {
       id: createTaskId(),
       title: input.title,
@@ -291,7 +315,7 @@ export const useDataStore = defineStore('data', () => {
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId: newTask.id,
-      actorId: input.assigneeId,
+      actorId,
       message: 'Created task',
       createdAt: now,
     })
@@ -299,6 +323,7 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const updateTaskStatus = (taskId: string, status: TaskStatus) => {
+    assertPermission(canEditTask(taskId), 'You do not have permission to update this task')
     const task = tasks.value.find((entry) => entry.id === taskId)
     if (!task) return
     task.status = status
@@ -306,7 +331,7 @@ export const useDataStore = defineStore('data', () => {
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId,
-      actorId: task.assigneeId,
+      actorId: currentMember.value?.id ?? task.assigneeId,
       message: `Changed status to ${status}`,
       createdAt: task.updatedAt,
     })
@@ -314,6 +339,7 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const updateTaskAssignee = (taskId: string, assigneeId: string) => {
+    assertPermission(canEditTask(taskId), 'You do not have permission to reassign this task')
     const task = tasks.value.find((entry) => entry.id === taskId)
     if (!task) return
     task.assigneeId = assigneeId
@@ -321,7 +347,7 @@ export const useDataStore = defineStore('data', () => {
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId,
-      actorId: assigneeId,
+      actorId: currentMember.value?.id ?? assigneeId,
       message: 'Updated assignee',
       createdAt: task.updatedAt,
     })
@@ -329,6 +355,7 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const updateTaskProject = (taskId: string, projectId: string) => {
+    assertPermission(canEditTask(taskId), 'You do not have permission to move this task')
     const task = tasks.value.find((entry) => entry.id === taskId)
     if (!task || task.projectId === projectId) return
     const previousProjectId = task.projectId
@@ -337,7 +364,7 @@ export const useDataStore = defineStore('data', () => {
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId,
-      actorId: task.assigneeId,
+      actorId: currentMember.value?.id ?? task.assigneeId,
       message: 'Moved task to another project',
       createdAt: task.updatedAt,
     })
@@ -346,6 +373,7 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const updateTaskDescription = (taskId: string, description: string) => {
+    assertPermission(canEditTask(taskId), 'You do not have permission to edit this task')
     const task = tasks.value.find((entry) => entry.id === taskId)
     if (!task) return
     task.description = description
@@ -353,31 +381,34 @@ export const useDataStore = defineStore('data', () => {
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId,
-      actorId: task.assigneeId,
+      actorId: currentMember.value?.id ?? task.assigneeId,
       message: 'Updated task description',
       createdAt: task.updatedAt,
     })
   }
 
   const addTaskComment = (taskId: string, authorId: string, body: string) => {
+    assertPermission(canCommentOnTasks.value, 'Only owners, admins, and members can comment on tasks')
     const now = new Date().toISOString()
+    const actorId = currentMember.value?.id ?? authorId
     taskComments.value.push({
       id: createCommentId(),
       taskId,
-      authorId,
+      authorId: actorId,
       body,
       createdAt: now,
     })
     taskActivity.value.unshift({
       id: createActivityId(),
       taskId,
-      actorId: authorId,
+      actorId,
       message: 'Added a comment',
       createdAt: now,
     })
   }
 
   const deleteTask = (taskId: string) => {
+    assertPermission(canEditTask(taskId), 'You do not have permission to delete this task')
     const task = tasks.value.find((entry) => entry.id === taskId)
     tasks.value = tasks.value.filter((entry) => entry.id !== taskId)
     taskComments.value = taskComments.value.filter((entry) => entry.taskId !== taskId)
@@ -386,8 +417,19 @@ export const useDataStore = defineStore('data', () => {
   }
 
   const updateMemberRole = (memberId: string, role: WorkspaceRole) => {
+    assertPermission(canManageMembers.value, 'Only owners and admins can manage roles')
     const member = members.value.find((entry) => entry.id === memberId)
-    if (member) member.role = role
+    if (!member) return
+
+    if (currentRole.value === 'Admin' && (member.role === 'Owner' || member.role === 'Admin' || role === 'Owner' || role === 'Admin')) {
+      throw new Error('Admins can only manage members and guests')
+    }
+
+    if (currentMember.value?.id === memberId && role !== 'Owner') {
+      throw new Error('The active owner cannot remove their own owner role')
+    }
+
+    member.role = role
   }
 
   const touchProject = (projectId: string) => {
@@ -433,6 +475,12 @@ export const useDataStore = defineStore('data', () => {
     taskActivity,
     initError,
     dateRange,
+    currentMember,
+    currentRole,
+    canManageProjects,
+    canManageMembers,
+    canCreateTasks,
+    canCommentOnTasks,
     tasksInRange,
     openTasks,
     overdueTasks,
@@ -454,6 +502,7 @@ export const useDataStore = defineStore('data', () => {
     getTaskById,
     getTaskComments,
     getTaskActivity,
+    canEditTask,
     initData,
     setDateRange,
     syncProfile,
@@ -472,4 +521,10 @@ export const useDataStore = defineStore('data', () => {
 
 function avatarFor(name: string) {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1d4ed8&color=ffffff`
+}
+
+function assertPermission(condition: boolean, message: string) {
+  if (!condition) {
+    throw new Error(message)
+  }
 }

@@ -21,8 +21,12 @@ const roles: WorkspaceRole[] = ['Owner', 'Admin', 'Member', 'Guest']
 
 const handleRoleChange = (memberId: string | number | undefined, role: string) => {
   if (memberId == null) return
-  store.updateMemberRole(String(memberId), role as WorkspaceRole)
-  toast.success('Member role updated')
+  try {
+    store.updateMemberRole(String(memberId), role as WorkspaceRole)
+    toast.success('Member role updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Role update failed')
+  }
 }
 </script>
 
@@ -48,6 +52,7 @@ const handleRoleChange = (memberId: string | number | undefined, role: string) =
         <select
           :value="item.role"
           class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          :disabled="!store.canManageMembers || (store.currentRole === 'Admin' && (item.role === 'Owner' || item.role === 'Admin'))"
           @change="handleRoleChange(item.id, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>

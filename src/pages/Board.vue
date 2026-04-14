@@ -28,6 +28,10 @@ const columnTasks = computed(() =>
 )
 
 const moveTask = (taskId: string, direction: -1 | 1) => {
+  if (!store.canEditTask(taskId)) {
+    toast.error('You do not have permission to move this task')
+    return
+  }
   const task = store.getTaskById(taskId)
   if (!task) return
   const currentIndex = columns.indexOf(task.status)
@@ -121,14 +125,14 @@ watch(
             <div class="mt-4 flex gap-2">
               <button
                 class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
-                :disabled="column.status === 'Backlog'"
+                :disabled="column.status === 'Backlog' || !store.canEditTask(task.id)"
                 @click="moveTask(task.id, -1)"
               >
                 Move left
               </button>
               <button
                 class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
-                :disabled="column.status === 'Done'"
+                :disabled="column.status === 'Done' || !store.canEditTask(task.id)"
                 @click="moveTask(task.id, 1)"
               >
                 Move right

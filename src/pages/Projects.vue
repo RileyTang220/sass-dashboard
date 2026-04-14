@@ -35,6 +35,10 @@ const columns = [
 const ownerOptions = computed(() => store.members)
 
 const openCreateModal = () => {
+  if (!store.canManageProjects) {
+    toast.error('Only owners and admins can create projects')
+    return
+  }
   projectForm.name = ''
   projectForm.key = ''
   projectForm.description = ''
@@ -44,18 +48,26 @@ const openCreateModal = () => {
 }
 
 const submitProject = () => {
-  store.addProject({
-    name: projectForm.name,
-    key: projectForm.key,
-    description: projectForm.description,
-    ownerId: projectForm.ownerId,
-    dueDate: new Date(projectForm.dueDate).toISOString(),
-  })
-  isCreateModalOpen.value = false
-  toast.success('Project created')
+  try {
+    store.addProject({
+      name: projectForm.name,
+      key: projectForm.key,
+      description: projectForm.description,
+      ownerId: projectForm.ownerId,
+      dueDate: new Date(projectForm.dueDate).toISOString(),
+    })
+    isCreateModalOpen.value = false
+    toast.success('Project created')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Project creation failed')
+  }
 }
 
 const openDeleteModal = (id: string | number | undefined) => {
+  if (!store.canManageProjects) {
+    toast.error('Only owners and admins can delete projects')
+    return
+  }
   if (!id) return
   projectIdToDelete.value = String(id)
   isDeleteModalOpen.value = true
@@ -63,9 +75,13 @@ const openDeleteModal = (id: string | number | undefined) => {
 
 const confirmDelete = () => {
   if (!projectIdToDelete.value) return
-  store.deleteProject(projectIdToDelete.value)
-  projectIdToDelete.value = null
-  toast.success('Project removed')
+  try {
+    store.deleteProject(projectIdToDelete.value)
+    projectIdToDelete.value = null
+    toast.success('Project removed')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Project deletion failed')
+  }
 }
 </script>
 
@@ -78,7 +94,9 @@ const confirmDelete = () => {
       </div>
       <button
         @click="openCreateModal"
+        :disabled="!store.canManageProjects"
         class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+        :class="{ 'cursor-not-allowed opacity-50 hover:bg-indigo-600': !store.canManageProjects }"
       >
         <PlusIcon class="h-5 w-5" />
         New Project
@@ -137,7 +155,9 @@ const confirmDelete = () => {
       <template #actions-cell="{ item }">
         <button
           @click="openDeleteModal(item.id)"
+          :disabled="!store.canManageProjects"
           class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+          :class="{ 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-gray-400 dark:hover:bg-transparent': !store.canManageProjects }"
           title="Delete project"
         >
           <TrashIcon class="h-5 w-5" />

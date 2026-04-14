@@ -21,30 +21,47 @@ const commentForm = reactive({
 })
 
 const taskStatuses: TaskStatus[] = ['Backlog', 'In Progress', 'In Review', 'Done']
+const canEditCurrentTask = computed(() => (task.value ? store.canEditTask(task.value.id) : false))
 
 const updateStatus = (status: string) => {
   if (!task.value) return
-  store.updateTaskStatus(task.value.id, status as TaskStatus)
-  toast.success('Task status updated')
+  try {
+    store.updateTaskStatus(task.value.id, status as TaskStatus)
+    toast.success('Task status updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task status update failed')
+  }
 }
 
 const updateAssignee = (assigneeId: string) => {
   if (!task.value) return
-  store.updateTaskAssignee(task.value.id, assigneeId)
-  toast.success('Assignee updated')
+  try {
+    store.updateTaskAssignee(task.value.id, assigneeId)
+    toast.success('Assignee updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Assignee update failed')
+  }
 }
 
 const updateDescription = () => {
   if (!task.value) return
-  store.updateTaskDescription(task.value.id, descriptionDraft.value)
-  toast.success('Description updated')
+  try {
+    store.updateTaskDescription(task.value.id, descriptionDraft.value)
+    toast.success('Description updated')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Description update failed')
+  }
 }
 
 const addComment = () => {
   if (!task.value || !commentForm.body.trim()) return
-  store.addTaskComment(task.value.id, task.value.assigneeId, commentForm.body.trim())
-  commentForm.body = ''
-  toast.success('Comment added')
+  try {
+    store.addTaskComment(task.value.id, store.currentMember?.id ?? task.value.assigneeId, commentForm.body.trim())
+    commentForm.body = ''
+    toast.success('Comment added')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Comment failed')
+  }
 }
 
 watch(
@@ -79,12 +96,17 @@ watch(
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Description</h3>
-            <button class="text-sm font-medium text-indigo-600 hover:text-indigo-700" @click="updateDescription">
+            <button
+              :disabled="!canEditCurrentTask"
+              class="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              @click="updateDescription"
+            >
               Save
             </button>
           </div>
           <textarea
             v-model="descriptionDraft"
+            :disabled="!canEditCurrentTask"
             rows="8"
             class="mt-4 block w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
           />
@@ -112,12 +134,17 @@ watch(
           <form class="mt-5 space-y-3" @submit.prevent="addComment">
             <textarea
               v-model="commentForm.body"
+              :disabled="!store.canCommentOnTasks"
               rows="4"
               placeholder="Add context, blockers, or review notes..."
               class="block w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             />
             <div class="flex justify-end">
-              <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              <button
+                type="submit"
+                :disabled="!store.canCommentOnTasks"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 Add comment
               </button>
             </div>
@@ -131,13 +158,23 @@ watch(
           <div class="mt-5 space-y-4 text-sm">
             <div>
               <label class="mb-1 block text-gray-500 dark:text-gray-400">Status</label>
-              <select :value="task.status" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900 dark:text-white" @change="updateStatus(($event.target as HTMLSelectElement).value)">
+              <select
+                :value="task.status"
+                :disabled="!canEditCurrentTask"
+                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                @change="updateStatus(($event.target as HTMLSelectElement).value)"
+              >
                 <option v-for="status in taskStatuses" :key="status" :value="status">{{ status }}</option>
               </select>
             </div>
             <div>
               <label class="mb-1 block text-gray-500 dark:text-gray-400">Assignee</label>
-              <select :value="task.assigneeId" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900 dark:text-white" @change="updateAssignee(($event.target as HTMLSelectElement).value)">
+              <select
+                :value="task.assigneeId"
+                :disabled="!canEditCurrentTask"
+                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                @change="updateAssignee(($event.target as HTMLSelectElement).value)"
+              >
                 <option v-for="member in store.members" :key="member.id" :value="member.id">{{ member.name }}</option>
               </select>
             </div>
