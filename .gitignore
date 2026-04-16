@@ -36,3 +36,8 @@ coverage
 __screenshots__/
 
 .vercel
+
+# Server
+server/.env
+server/node_modules
+server/dist

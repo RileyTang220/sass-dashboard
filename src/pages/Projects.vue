@@ -47,9 +47,9 @@ const openCreateModal = () => {
   isCreateModalOpen.value = true
 }
 
-const submitProject = () => {
+const submitProject = async () => {
   try {
-    store.addProject({
+    await store.addProject({
       name: projectForm.name,
       key: projectForm.key,
       description: projectForm.description,
@@ -73,10 +73,10 @@ const openDeleteModal = (id: string | number | undefined) => {
   isDeleteModalOpen.value = true
 }
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (!projectIdToDelete.value) return
   try {
-    store.deleteProject(projectIdToDelete.value)
+    await store.deleteProject(projectIdToDelete.value)
     projectIdToDelete.value = null
     toast.success('Project removed')
   } catch (error) {

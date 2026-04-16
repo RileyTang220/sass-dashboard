@@ -112,9 +112,9 @@ const openCreateModal = () => {
   isCreateModalOpen.value = true
 }
 
-const submitTask = () => {
+const submitTask = async () => {
   try {
-    store.addTask({
+    await store.addTask({
       title: taskForm.title,
       description: taskForm.description,
       projectId: taskForm.projectId,
@@ -130,30 +130,30 @@ const submitTask = () => {
   }
 }
 
-const updateAssignee = (taskId: string | number | undefined, assigneeId: string) => {
+const updateAssignee = async (taskId: string | number | undefined, assigneeId: string) => {
   if (taskId == null) return
   try {
-    store.updateTaskAssignee(String(taskId), assigneeId)
+    await store.updateTaskAssignee(String(taskId), assigneeId)
     toast.success('Assignee updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Assignee update failed')
   }
 }
 
-const updateProject = (taskId: string | number | undefined, projectId: string) => {
+const updateProject = async (taskId: string | number | undefined, projectId: string) => {
   if (taskId == null) return
   try {
-    store.updateTaskProject(String(taskId), projectId)
+    await store.updateTaskProject(String(taskId), projectId)
     toast.success('Task moved')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Task move failed')
   }
 }
 
-const updateStatus = (taskId: string | number | undefined, status: string) => {
+const updateStatus = async (taskId: string | number | undefined, status: string) => {
   if (taskId == null) return
   try {
-    store.updateTaskStatus(String(taskId), status as TaskStatus)
+    await store.updateTaskStatus(String(taskId), status as TaskStatus)
     toast.success('Task updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Task update failed')
@@ -171,10 +171,10 @@ const openDeleteModal = (id: string | number | undefined) => {
   isDeleteModalOpen.value = true
 }
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (!taskIdToDelete.value) return
   try {
-    store.deleteTask(taskIdToDelete.value)
+    await store.deleteTask(taskIdToDelete.value)
     taskIdToDelete.value = null
     toast.success('Task removed')
   } catch (error) {

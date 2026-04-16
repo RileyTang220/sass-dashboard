@@ -27,7 +27,7 @@ const columnTasks = computed(() =>
   }))
 )
 
-const moveTask = (taskId: string, direction: -1 | 1) => {
+const moveTask = async (taskId: string, direction: -1 | 1) => {
   if (!store.canEditTask(taskId)) {
     toast.error('You do not have permission to move this task')
     return
@@ -39,8 +39,12 @@ const moveTask = (taskId: string, direction: -1 | 1) => {
   if (nextIndex < 0 || nextIndex >= columns.length) return
   const nextStatus = columns[nextIndex]
   if (!nextStatus) return
-  store.updateTaskStatus(taskId, nextStatus)
-  toast.success('Task moved')
+  try {
+    await store.updateTaskStatus(taskId, nextStatus)
+    toast.success('Task moved')
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : 'Task move failed')
+  }
 }
 
 watch(

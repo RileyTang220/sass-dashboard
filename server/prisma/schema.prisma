@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────────
+
+enum WorkspacePlan {
+  Starter
+  Team
+  Business
+}
+
+enum WorkspaceRole {
+  Owner
+  Admin
+  Member
+  Guest
+}
+
+enum MemberStatus {
+  Active
+  Invited
+}
+
+enum ProjectStatus {
+  OnTrack    @map("On Track")
+  AtRisk     @map("At Risk")
+  OffTrack   @map("Off Track")
+  Completed
+}
+
+enum TaskStatus {
+  Backlog
+  InProgress  @map("In Progress")
+  InReview    @map("In Review")
+  Done
+}
+
+enum TaskPriority {
+  Low
+  Medium
+  High
+  Critical
+}
+
+enum TaskType {
+  Feature
+  Bug
+  Ops
+  Research
+}
+
+// ── User (auth account) ────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memberships  WorkspaceMember[]
+
+  @@map("users")
+}
+
+// ── Workspace ──────────────────────────────────────────
+
+model Workspace {
+  id   String        @id @default(uuid())
+  name String
+  slug String        @unique
+  plan WorkspacePlan @default(Starter)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members  WorkspaceMember[]
+  projects Project[]
+
+  @@map("workspaces")
+}
+
+// ── Workspace Member (join table: User ↔ Workspace) ───
+
+model WorkspaceMember {
+  id           String        @id @default(uuid())
+  workspaceId  String        @map("workspace_id")
+  userId       String        @map("user_id")
+  role         WorkspaceRole @default(Member)
+  status       MemberStatus  @default(Active)
+  joinedAt     DateTime      @default(now()) @map("joined_at")
+  lastActiveAt DateTime      @default(now()) @map("last_active_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ownedProjects    Project[]      @relation("ProjectOwner")
+  assignedTasks    Task[]         @relation("TaskAssignee")
+  reportedTasks    Task[]         @relation("TaskReporter")
+  taskComments     TaskComment[]
+  taskActivities   TaskActivity[]
+  projectMembers   ProjectMember[]
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+// ── Project ────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid())
+  workspaceId String        @map("workspace_id")
+  name        String
+  key         String
+  description String        @default("")
+  status      ProjectStatus @default(OnTrack)
+  progress    Int           @default(0)
+  ownerId     String        @map("owner_id")
+  dueDate     DateTime?     @map("due_date")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     WorkspaceMember @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members   ProjectMember[]
+  tasks     Task[]
+
+  @@unique([workspaceId, key])
+  @@map("projects")
+}
+
+// ── Project Member (join table: Member ↔ Project) ─────
+
+model ProjectMember {
+  id        String @id @default(uuid())
+  projectId String @map("project_id")
+  memberId  String @map("member_id")
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member  WorkspaceMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, memberId])
+  @@map("project_members")
+}
+
+// ── Task ───────────────────────────────────────────────
+
+model Task {
+  id          String       @id @default(uuid())
+  projectId   String       @map("project_id")
+  title       String
+  description String       @default("")
+  assigneeId  String       @map("assignee_id")
+  reporterId  String       @map("reporter_id")
+  status      TaskStatus   @default(Backlog)
+  priority    TaskPriority @default(Medium)
+  type        TaskType     @default(Feature)
+  dueDate     DateTime?    @map("due_date")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee WorkspaceMember @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  reporter WorkspaceMember @relation("TaskReporter", fields: [reporterId], references: [id])
+
+  comments   TaskComment[]
+  activities TaskActivity[]
+
+  @@map("tasks")
+}
+
+// ── Task Comment ───────────────────────────────────────
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  authorId  String   @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task   Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author WorkspaceMember @relation(fields: [authorId], references: [id])
+
+  @@map("task_comments")
+}
+
+// ── Task Activity ──────────────────────────────────────
+
+model TaskActivity {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  actorId   String   @map("actor_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task  Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor WorkspaceMember @relation(fields: [actorId], references: [id])
+
+  @@map("task_activities")
+}

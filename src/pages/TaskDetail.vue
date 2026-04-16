@@ -23,40 +23,40 @@ const commentForm = reactive({
 const taskStatuses: TaskStatus[] = ['Backlog', 'In Progress', 'In Review', 'Done']
 const canEditCurrentTask = computed(() => (task.value ? store.canEditTask(task.value.id) : false))
 
-const updateStatus = (status: string) => {
+const updateStatus = async (status: string) => {
   if (!task.value) return
   try {
-    store.updateTaskStatus(task.value.id, status as TaskStatus)
+    await store.updateTaskStatus(task.value.id, status as TaskStatus)
     toast.success('Task status updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Task status update failed')
   }
 }
 
-const updateAssignee = (assigneeId: string) => {
+const updateAssignee = async (assigneeId: string) => {
   if (!task.value) return
   try {
-    store.updateTaskAssignee(task.value.id, assigneeId)
+    await store.updateTaskAssignee(task.value.id, assigneeId)
     toast.success('Assignee updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Assignee update failed')
   }
 }
 
-const updateDescription = () => {
+const updateDescription = async () => {
   if (!task.value) return
   try {
-    store.updateTaskDescription(task.value.id, descriptionDraft.value)
+    await store.updateTaskDescription(task.value.id, descriptionDraft.value)
     toast.success('Description updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Description update failed')
   }
 }
 
-const addComment = () => {
+const addComment = async () => {
   if (!task.value || !commentForm.body.trim()) return
   try {
-    store.addTaskComment(task.value.id, store.currentMember?.id ?? task.value.assigneeId, commentForm.body.trim())
+    await store.addTaskComment(task.value.id, store.currentMember?.id ?? task.value.assigneeId, commentForm.body.trim())
     commentForm.body = ''
     toast.success('Comment added')
   } catch (error) {

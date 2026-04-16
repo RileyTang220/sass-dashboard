@@ -19,10 +19,10 @@ const columns = [
 
 const roles: WorkspaceRole[] = ['Owner', 'Admin', 'Member', 'Guest']
 
-const handleRoleChange = (memberId: string | number | undefined, role: string) => {
+const handleRoleChange = async (memberId: string | number | undefined, role: string) => {
   if (memberId == null) return
   try {
-    store.updateMemberRole(String(memberId), role as WorkspaceRole)
+    await store.updateMemberRole(String(memberId), role as WorkspaceRole)
     toast.success('Member role updated')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Role update failed')
