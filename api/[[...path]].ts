@@ -1,9 +1,25 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import appModule from '../server/src/index.js';
+import express from 'express';
+import cors from 'cors';
+import authRoutes from '../server/src/routes/auth';
+import workspaceRoutes from '../server/src/routes/workspace';
+import memberRoutes from '../server/src/routes/members';
+import projectRoutes from '../server/src/routes/projects';
+import taskRoutes from '../server/src/routes/tasks';
 
-// Handle ESM/CJS interop — the import may be { default: app } or app directly
-const app = typeof appModule === 'function' ? appModule : (appModule as any).default;
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/api/auth', authRoutes);
+app.use('/api/workspace', workspaceRoutes);
+app.use('/api/members', memberRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  return app(req, res);
+  return app(req as any, res as any);
 }

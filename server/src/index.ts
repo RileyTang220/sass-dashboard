@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import authRoutes from './routes/auth.js';
-import workspaceRoutes from './routes/workspace.js';
-import memberRoutes from './routes/members.js';
-import projectRoutes from './routes/projects.js';
-import taskRoutes from './routes/tasks.js';
+import authRoutes from './routes/auth';
+import workspaceRoutes from './routes/workspace';
+import memberRoutes from './routes/members';
+import projectRoutes from './routes/projects';
+import taskRoutes from './routes/tasks';
 
 const app = express();
 
