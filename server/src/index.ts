@@ -32,4 +32,5 @@ if (!process.env.VERCEL) {
 }
 
 // Export for Vercel serverless
+export { app };
 export default app;
