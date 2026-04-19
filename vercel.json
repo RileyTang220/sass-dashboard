@@ -1,7 +1,6 @@
 {
   "buildCommand": "DATABASE_URL=\"$POSTGRES_PRISMA_URL\" npx prisma generate --schema=server/prisma/schema.prisma && npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
   "functions": {
     "api/[[...path]].ts": {
       "includeFiles": "server/**"

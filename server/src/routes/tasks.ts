@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
-import { authMiddleware } from '../middleware/auth';
+import { prisma } from '../prisma.js';
+import { authMiddleware } from '../middleware/auth.js';
 import type { TaskStatus, TaskPriority, TaskType } from '@prisma/client';
 
 const router = Router();

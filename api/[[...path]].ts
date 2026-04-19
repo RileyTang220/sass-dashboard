@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import cors from 'cors';
-import authRoutes from '../server/src/routes/auth';
-import workspaceRoutes from '../server/src/routes/workspace';
-import memberRoutes from '../server/src/routes/members';
-import projectRoutes from '../server/src/routes/projects';
-import taskRoutes from '../server/src/routes/tasks';
+import authRoutes from '../server/src/routes/auth.js';
+import workspaceRoutes from '../server/src/routes/workspace.js';
+import memberRoutes from '../server/src/routes/members.js';
+import projectRoutes from '../server/src/routes/projects.js';
+import taskRoutes from '../server/src/routes/tasks.js';
 
 const app = express();
 app.use(cors());
