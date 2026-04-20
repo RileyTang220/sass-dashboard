@@ -12,7 +12,7 @@
     "paths": {}
   },
   "include": [
-    "./**/*.ts",
+    "index.ts",
     "../server/src/**/*.ts"
   ]
 }

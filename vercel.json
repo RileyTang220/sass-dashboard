@@ -2,11 +2,15 @@
   "buildCommand": "DATABASE_URL=\"$POSTGRES_PRISMA_URL\" npx prisma generate --schema=server/prisma/schema.prisma && npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/[[...path]].ts": {
+    "api/index.ts": {
       "includeFiles": "server/**"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
     {
       "source": "/((?!api/|assets/|.*\\.).*)",
       "destination": "/index.html"
