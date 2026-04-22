@@ -176,6 +176,7 @@ function buildTask(
     dueDate: addDays(new Date(), dueOffset).toISOString(),
     createdAt: subDays(new Date(), createdDaysAgo).toISOString(),
     updatedAt: subDays(new Date(), updatedDaysAgo).toISOString(),
+    sprintId: null,
   }
 }
 

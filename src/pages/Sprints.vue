@@ -45,7 +45,7 @@ const sprintBoardTasks = computed(() => {
   for (const task of tasks) {
     const col = grouped[task.status]
     if (col) col.push(task)
-    else grouped.Backlog.push(task)
+    else grouped.Backlog?.push(task)
   }
   return grouped
 })
