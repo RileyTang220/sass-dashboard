@@ -5,6 +5,7 @@ import workspaceRoutes from './routes/workspace.js';
 import memberRoutes from './routes/members.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
+import sprintRoutes from './routes/sprints.js';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use('/api/workspace', workspaceRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/sprints', sprintRoutes);
 
 // ── Health check ───────────────────────────────────────
 app.get('/api/health', (_req, res) => {

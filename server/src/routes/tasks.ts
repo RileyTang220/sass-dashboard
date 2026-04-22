@@ -43,6 +43,7 @@ function serializeTask(t: any) {
     title: t.title,
     description: t.description,
     projectId: t.projectId,
+    sprintId: t.sprintId ?? null,
     assigneeId: t.assigneeId,
     reporterId: t.reporterId,
     status: mapStatus(t.status),
@@ -97,7 +98,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const memberId = await getMemberId(req.userId!);
     if (!memberId) { res.status(403).json({ message: 'No membership' }); return; }
 
-    const { title, description, projectId, assigneeId, priority, type, dueDate, status } = req.body;
+    const { title, description, projectId, sprintId, assigneeId, priority, type, dueDate, status } = req.body;
     if (!title || !projectId) {
       res.status(400).json({ message: 'title and projectId are required' });
       return;
@@ -108,6 +109,7 @@ router.post('/', authMiddleware, async (req, res) => {
         title,
         description: description ?? '',
         projectId,
+        sprintId: sprintId ?? null,
         assigneeId: assigneeId || memberId,
         reporterId: memberId,
         status: status ? toStatusEnum(status) : 'Backlog',
@@ -167,6 +169,10 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     }
     if (req.body.dueDate !== undefined) {
       data.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
+    }
+    if (req.body.sprintId !== undefined) {
+      data.sprintId = req.body.sprintId;
+      activities.push(req.body.sprintId ? 'Added to sprint' : 'Removed from sprint');
     }
 
     const task = await prisma.task.update({

@@ -56,6 +56,13 @@ enum TaskType {
   Research
 }
 
+enum SprintStatus {
+  Planning
+  Active
+  Completed
+  Cancelled
+}
+
 // ── User (auth account) ────────────────────────────────
 
 model User {
@@ -84,6 +91,7 @@ model Workspace {
 
   members  WorkspaceMember[]
   projects Project[]
+  sprints  Sprint[]
 
   @@map("workspaces")
 }
@@ -153,11 +161,31 @@ model ProjectMember {
   @@map("project_members")
 }
 
+// ── Sprint ─────────────────────────────────────────────
+
+model Sprint {
+  id          String       @id @default(uuid())
+  workspaceId String       @map("workspace_id")
+  name        String
+  goal        String       @default("")
+  status      SprintStatus @default(Planning)
+  startDate   DateTime?    @map("start_date")
+  endDate     DateTime?    @map("end_date")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@map("sprints")
+}
+
 // ── Task ───────────────────────────────────────────────
 
 model Task {
   id          String       @id @default(uuid())
   projectId   String       @map("project_id")
+  sprintId    String?      @map("sprint_id")
   title       String
   description String       @default("")
   assigneeId  String       @map("assignee_id")
@@ -170,6 +198,7 @@ model Task {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint   Sprint?         @relation(fields: [sprintId], references: [id], onDelete: SetNull)
   assignee WorkspaceMember @relation("TaskAssignee", fields: [assigneeId], references: [id])
   reporter WorkspaceMember @relation("TaskReporter", fields: [reporterId], references: [id])
 

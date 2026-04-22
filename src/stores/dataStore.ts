@@ -8,6 +8,7 @@ import type {
   Member,
   Project,
   ProjectStatus,
+  Sprint,
   TaskActivity,
   TaskComment,
   Task,
@@ -33,6 +34,7 @@ export const useDataStore = defineStore('data', () => {
   const members = ref<Member[]>([])
   const projects = ref<Project[]>([])
   const tasks = ref<Task[]>([])
+  const sprints = ref<Sprint[]>([])
   const taskComments = ref<TaskComment[]>([])
   const taskActivity = ref<TaskActivity[]>([])
   const initError = ref<string | null>(null)
@@ -47,16 +49,18 @@ export const useDataStore = defineStore('data', () => {
   const initData = async () => {
     initError.value = null
     try {
-      const [ws, memberList, projectList, taskList] = await Promise.all([
+      const [ws, memberList, projectList, taskList, sprintList] = await Promise.all([
         api.workspace.get(),
         api.members.list(),
         api.projects.list(),
         api.tasks.list(),
+        api.sprints.list(),
       ])
       workspace.value = ws
       members.value = memberList
       projects.value = projectList
       tasks.value = taskList
+      sprints.value = sprintList
     } catch (error) {
       initError.value = error instanceof Error ? error.message : 'Failed to load workspace data'
     }
@@ -411,6 +415,88 @@ export const useDataStore = defineStore('data', () => {
     members.value = members.value.filter((m) => m.id !== memberId)
   }
 
+  // ── Sprint computed ─────────────────────────────────
+  const activeSprint = computed(() =>
+    sprints.value.find((s) => s.status === 'Active') ?? null
+  )
+
+  const backlogTasks = computed(() =>
+    tasks.value.filter((t) => !t.sprintId && t.status !== 'Done')
+  )
+
+  const sprintTasks = (sprintId: string) =>
+    tasks.value.filter((t) => t.sprintId === sprintId)
+
+  // ── Sprint mutations ────────────────────────────────
+  const createSprint = async (data: { name: string; goal?: string; startDate?: string; endDate?: string }) => {
+    const created = await api.sprints.create(data)
+    sprints.value.unshift(created)
+    return created
+  }
+
+  const updateSprint = async (id: string, data: Partial<{ name: string; goal: string; startDate: string; endDate: string }>) => {
+    const updated = await api.sprints.update(id, data)
+    const idx = sprints.value.findIndex((s) => s.id === id)
+    if (idx !== -1) sprints.value[idx] = updated
+    return updated
+  }
+
+  const startSprint = async (id: string) => {
+    const updated = await api.sprints.start(id)
+    const idx = sprints.value.findIndex((s) => s.id === id)
+    if (idx !== -1) sprints.value[idx] = updated
+    return updated
+  }
+
+  const completeSprint = async (id: string, moveUnfinishedTo?: string | null) => {
+    const result = await api.sprints.complete(id, moveUnfinishedTo)
+    const idx = sprints.value.findIndex((s) => s.id === id)
+    if (idx !== -1) sprints.value[idx] = result
+    // Refresh tasks to get updated sprintIds
+    const taskList = await api.tasks.list()
+    tasks.value = taskList
+    return result
+  }
+
+  const addTasksToSprint = async (sprintId: string, taskIds: string[]) => {
+    await api.sprints.addTasks(sprintId, taskIds)
+    // Update local state
+    for (const task of tasks.value) {
+      if (taskIds.includes(task.id)) {
+        task.sprintId = sprintId
+      }
+    }
+    // Update sprint task counts
+    await refreshSprint(sprintId)
+  }
+
+  const removeTasksFromSprint = async (sprintId: string, taskIds: string[]) => {
+    await api.sprints.removeTasks(sprintId, taskIds)
+    for (const task of tasks.value) {
+      if (taskIds.includes(task.id)) {
+        task.sprintId = null
+      }
+    }
+    await refreshSprint(sprintId)
+  }
+
+  const deleteSprint = async (id: string) => {
+    await api.sprints.delete(id)
+    sprints.value = sprints.value.filter((s) => s.id !== id)
+    // Tasks moved back to backlog
+    for (const task of tasks.value) {
+      if (task.sprintId === id) task.sprintId = null
+    }
+  }
+
+  const refreshSprint = async (id: string) => {
+    try {
+      const updated = await api.sprints.get(id)
+      const idx = sprints.value.findIndex((s) => s.id === id)
+      if (idx !== -1) sprints.value[idx] = updated
+    } catch { /* ignore */ }
+  }
+
   return {
     workspace,
     members,
@@ -466,6 +552,17 @@ export const useDataStore = defineStore('data', () => {
     addMember,
     inviteMember,
     removeMember,
+    sprints,
+    activeSprint,
+    backlogTasks,
+    sprintTasks,
+    createSprint,
+    updateSprint,
+    startSprint,
+    completeSprint,
+    addTasksToSprint,
+    removeTasksFromSprint,
+    deleteSprint,
   }
 })
 

@@ -1,6 +1,8 @@
 import type {
   Member,
   Project,
+  Sprint,
+  SprintStatus,
   Task,
   TaskComment,
   TaskActivity,
@@ -170,6 +172,7 @@ export const api = {
       status: TaskStatus
       assigneeId: string
       projectId: string
+      sprintId: string | null
       description: string
       priority: string
       title: string
@@ -194,5 +197,40 @@ export const api = {
     // Activity
     getActivity: (taskId: string) =>
       request<(TaskActivity & { actorName: string })[]>(`/api/tasks/${taskId}/activity`),
+  },
+
+  sprints: {
+    list: () => request<Sprint[]>('/api/sprints'),
+    getActive: () => request<Sprint | null>('/api/sprints/active'),
+    get: (id: string) => request<Sprint>(`/api/sprints/${id}`),
+    create: (data: { name: string; goal?: string; startDate?: string; endDate?: string }) =>
+      request<Sprint>('/api/sprints', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<{ name: string; goal: string; startDate: string; endDate: string }>) =>
+      request<Sprint>(`/api/sprints/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    start: (id: string) =>
+      request<Sprint>(`/api/sprints/${id}/start`, { method: 'POST' }),
+    complete: (id: string, moveUnfinishedTo?: string | null) =>
+      request<Sprint & { movedTaskCount: number }>(`/api/sprints/${id}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ moveUnfinishedTo }),
+      }),
+    addTasks: (id: string, taskIds: string[]) =>
+      request<{ message: string; count: number }>(`/api/sprints/${id}/tasks`, {
+        method: 'POST',
+        body: JSON.stringify({ taskIds }),
+      }),
+    removeTasks: (id: string, taskIds: string[]) =>
+      request<{ message: string; count: number }>(`/api/sprints/${id}/tasks`, {
+        method: 'DELETE',
+        body: JSON.stringify({ taskIds }),
+      }),
+    delete: (id: string) =>
+      request<void>(`/api/sprints/${id}`, { method: 'DELETE' }),
   },
 }

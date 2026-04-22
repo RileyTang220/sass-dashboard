@@ -11,6 +11,7 @@ export type ProjectStatus = 'On Track' | 'At Risk' | 'Off Track' | 'Completed'
 export type TaskStatus = 'Backlog' | 'In Progress' | 'In Review' | 'Done'
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical'
 export type TaskType = 'Feature' | 'Bug' | 'Ops' | 'Research'
+export type SprintStatus = 'Planning' | 'Active' | 'Completed' | 'Cancelled'
 
 export interface Workspace {
   id: string
@@ -45,11 +46,26 @@ export interface Project {
   updatedAt: string
 }
 
+export interface Sprint {
+  id: string
+  workspaceId: string
+  name: string
+  goal: string
+  status: SprintStatus
+  startDate: string | null
+  endDate: string | null
+  createdAt: string
+  updatedAt: string
+  taskCount: number
+  completedTaskCount: number
+}
+
 export interface Task {
   id: string
   title: string
   description: string
   projectId: string
+  sprintId: string | null
   assigneeId: string
   reporterId: string
   status: TaskStatus
