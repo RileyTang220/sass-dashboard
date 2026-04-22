@@ -91,13 +91,15 @@ model Workspace {
 // ── Workspace Member (join table: User ↔ Workspace) ───
 
 model WorkspaceMember {
-  id           String        @id @default(uuid())
-  workspaceId  String        @map("workspace_id")
-  userId       String        @map("user_id")
-  role         WorkspaceRole @default(Member)
-  status       MemberStatus  @default(Active)
-  joinedAt     DateTime      @default(now()) @map("joined_at")
-  lastActiveAt DateTime      @default(now()) @map("last_active_at")
+  id              String        @id @default(uuid())
+  workspaceId     String        @map("workspace_id")
+  userId          String        @map("user_id")
+  role            WorkspaceRole @default(Member)
+  status          MemberStatus  @default(Active)
+  inviteToken     String?       @unique @map("invite_token")
+  inviteExpiresAt DateTime?     @map("invite_expires_at")
+  joinedAt        DateTime      @default(now()) @map("joined_at")
+  lastActiveAt    DateTime      @default(now()) @map("last_active_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
