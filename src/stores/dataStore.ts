@@ -379,6 +379,38 @@ export const useDataStore = defineStore('data', () => {
     if (idx !== -1) members.value[idx] = updated
   }
 
+  const addMember = async (data: {
+    name: string
+    email: string
+    password: string
+    role?: WorkspaceRole
+    projectIds?: string[]
+  }) => {
+    assertPermission(canManageMembers.value, 'Only owners and admins can add members')
+    const created = await api.members.add(data)
+    members.value.push(created)
+    return created
+  }
+
+  const inviteMember = async (data: { email: string; role?: WorkspaceRole }) => {
+    assertPermission(canManageMembers.value, 'Only owners and admins can invite members')
+    const result = await api.members.invite(data)
+    // Add invited member to local list
+    const idx = members.value.findIndex((m) => m.id === result.id)
+    if (idx !== -1) {
+      members.value[idx] = result
+    } else {
+      members.value.push(result)
+    }
+    return result
+  }
+
+  const removeMember = async (memberId: string) => {
+    assertPermission(canManageMembers.value, 'Only owners and admins can remove members')
+    await api.members.remove(memberId)
+    members.value = members.value.filter((m) => m.id !== memberId)
+  }
+
   return {
     workspace,
     members,
@@ -431,6 +463,9 @@ export const useDataStore = defineStore('data', () => {
     addTaskComment,
     deleteTask,
     updateMemberRole,
+    addMember,
+    inviteMember,
+    removeMember,
   }
 })
 

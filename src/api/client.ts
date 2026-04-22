@@ -93,11 +93,38 @@ export const api = {
 
   members: {
     list: () => request<Member[]>('/api/members'),
+    add: (data: {
+      name: string
+      email: string
+      password: string
+      role?: WorkspaceRole
+      projectIds?: string[]
+    }) =>
+      request<Member>('/api/members', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    invite: (data: { email: string; role?: WorkspaceRole }) =>
+      request<Member & { inviteToken: string; inviteLink: string }>('/api/members/invite', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getInviteInfo: (token: string) =>
+      request<{ email: string; workspaceName: string; role: string }>(
+        `/api/members/invite/${token}`
+      ),
+    acceptInvite: (token: string, data: { name: string; password: string }) =>
+      request<{ message: string }>(`/api/members/invite/${token}/accept`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     updateRole: (memberId: string, role: WorkspaceRole) =>
       request<Member>(`/api/members/${memberId}/role`, {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       }),
+    remove: (memberId: string) =>
+      request<void>(`/api/members/${memberId}`, { method: 'DELETE' }),
   },
 
   projects: {

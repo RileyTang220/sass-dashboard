@@ -18,6 +18,12 @@ const router = createRouter({
       meta: { guest: true },
     },
     {
+      path: '/invite/:token',
+      name: 'AcceptInvite',
+      component: () => import('../pages/auth/AcceptInvite.vue'),
+      meta: { guest: true },
+    },
+    {
       path: '/',
       component: DefaultLayout,
       meta: { requiresAuth: true },
