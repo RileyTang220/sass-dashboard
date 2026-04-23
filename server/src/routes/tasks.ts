@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
 import type { TaskStatus, TaskPriority, TaskType } from '@prisma/client';
+import { createNotification, memberToUserId, getMemberName } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -128,6 +129,22 @@ router.post('/', authMiddleware, async (req, res) => {
       },
     });
 
+    // Notify assignee if assigned to someone else
+    const effectiveAssigneeId = assigneeId || memberId;
+    if (effectiveAssigneeId !== memberId) {
+      const assigneeUserId = await memberToUserId(effectiveAssigneeId);
+      const actorName = await getMemberName(memberId);
+      if (assigneeUserId) {
+        await createNotification({
+          userId: assigneeUserId,
+          type: 'TaskAssigned',
+          title: 'New task assigned to you',
+          message: `${actorName} assigned you "${task.title}"`,
+          linkUrl: `/tasks/${task.id}`,
+        });
+      }
+    }
+
     res.status(201).json(serializeTask(task));
   } catch (error) {
     console.error('Task create error:', error);
@@ -175,6 +192,10 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       activities.push(req.body.sprintId ? 'Added to sprint' : 'Removed from sprint');
     }
 
+    // Fetch existing task for comparison
+    const existingTask = await prisma.task.findUnique({ where: { id: req.params.id } });
+    if (!existingTask) { res.status(404).json({ message: 'Task not found' }); return; }
+
     const task = await prisma.task.update({
       where: { id: req.params.id },
       data,
@@ -185,6 +206,36 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       await prisma.taskActivity.create({
         data: { taskId: task.id, actorId: memberId, message },
       });
+    }
+
+    const actorName = await getMemberName(memberId);
+
+    // Notify on assignee change
+    if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
+      const newAssigneeUserId = await memberToUserId(req.body.assigneeId);
+      if (newAssigneeUserId && newAssigneeUserId !== req.userId) {
+        await createNotification({
+          userId: newAssigneeUserId,
+          type: 'TaskAssigned',
+          title: 'Task assigned to you',
+          message: `${actorName} assigned you "${task.title}"`,
+          linkUrl: `/tasks/${task.id}`,
+        });
+      }
+    }
+
+    // Notify assignee on status change (if the actor is not the assignee)
+    if (req.body.status !== undefined && existingTask.assigneeId !== memberId) {
+      const assigneeUserId = await memberToUserId(existingTask.assigneeId);
+      if (assigneeUserId) {
+        await createNotification({
+          userId: assigneeUserId,
+          type: 'TaskStatusChanged',
+          title: 'Task status updated',
+          message: `${actorName} changed "${task.title}" to ${mapStatus(task.status)}`,
+          linkUrl: `/tasks/${task.id}`,
+        });
+      }
     }
 
     res.json(serializeTask(task));
@@ -264,6 +315,27 @@ router.post('/:id/comments', authMiddleware, async (req, res) => {
         message: 'Added a comment',
       },
     });
+
+    // Notify task assignee and reporter about the comment
+    const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+    if (task) {
+      const commentAuthorName = comment.author.user.name;
+      const notifyMemberIds = new Set([task.assigneeId, task.reporterId]);
+      notifyMemberIds.delete(memberId); // Don't notify the commenter
+
+      for (const targetMemberId of notifyMemberIds) {
+        const targetUserId = await memberToUserId(targetMemberId);
+        if (targetUserId) {
+          await createNotification({
+            userId: targetUserId,
+            type: 'TaskCommented',
+            title: 'New comment on task',
+            message: `${commentAuthorName} commented on "${task.title}"`,
+            linkUrl: `/tasks/${task.id}`,
+          });
+        }
+      }
+    }
 
     res.status(201).json({
       id: comment.id,

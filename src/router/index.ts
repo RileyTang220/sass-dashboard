@@ -35,6 +35,7 @@ const router = createRouter({
         { path: 'tasks', name: 'Tasks', component: () => import('../pages/Tasks.vue') },
         { path: 'tasks/:id', name: 'Task Detail', component: () => import('../pages/TaskDetail.vue') },
         { path: 'sprints', name: 'Sprints', component: () => import('../pages/Sprints.vue') },
+        { path: 'notifications', name: 'Notifications', component: () => import('../pages/Notifications.vue') },
         { path: 'members', name: 'Members', component: () => import('../pages/Members.vue') },
         { path: 'settings', name: 'Settings', component: () => import('../pages/Settings.vue') },
       ],

@@ -9,6 +9,7 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   BoltIcon,
+  BellIcon,
 } from '@heroicons/vue/24/outline'
 import { RouterLink, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Projects', to: '/projects', icon: FolderIcon },
   { name: 'Tasks', to: '/tasks', icon: RectangleStackIcon },
   { name: 'Sprints', to: '/sprints', icon: BoltIcon },
+  { name: 'Notifications', to: '/notifications', icon: BellIcon },
   { name: 'Members', to: '/members', icon: UsersIcon },
   { name: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]

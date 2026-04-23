@@ -12,6 +12,7 @@ export type TaskStatus = 'Backlog' | 'In Progress' | 'In Review' | 'Done'
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical'
 export type TaskType = 'Feature' | 'Bug' | 'Ops' | 'Research'
 export type SprintStatus = 'Planning' | 'Active' | 'Completed' | 'Cancelled'
+export type NotificationType = 'TaskAssigned' | 'TaskStatusChanged' | 'TaskCommented' | 'SprintStarted' | 'SprintCompleted' | 'MemberAdded' | 'MemberRemoved'
 
 export interface Workspace {
   id: string
@@ -90,6 +91,24 @@ export interface TaskActivity {
   actorId: string
   message: string
   createdAt: string
+}
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  message: string
+  linkUrl: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+export interface NotificationPage {
+  notifications: Notification[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export interface WorkspaceSeed {

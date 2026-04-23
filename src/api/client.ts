@@ -1,5 +1,7 @@
 import type {
   Member,
+  Notification,
+  NotificationPage,
   Project,
   Sprint,
   SprintStatus,
@@ -232,5 +234,21 @@ export const api = {
       }),
     delete: (id: string) =>
       request<void>(`/api/sprints/${id}`, { method: 'DELETE' }),
+  },
+
+  notifications: {
+    list: (page = 1, limit = 20, filter?: 'unread') => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (filter) params.set('filter', filter)
+      return request<NotificationPage>(`/api/notifications?${params}`)
+    },
+    unreadCount: () =>
+      request<{ count: number }>('/api/notifications/unread-count'),
+    markRead: (id: string) =>
+      request<Notification>(`/api/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllRead: () =>
+      request<{ message: string; count: number }>('/api/notifications/read-all', { method: 'POST' }),
+    delete: (id: string) =>
+      request<void>(`/api/notifications/${id}`, { method: 'DELETE' }),
   },
 }
