@@ -73,8 +73,8 @@ export const useNotificationStore = defineStore('notification', () => {
       await api.notifications.delete(id)
       const idx = notifications.value.findIndex((n) => n.id === id)
       if (idx !== -1) {
-        const removed = notifications.value.splice(idx, 1)[0]
-        if (!removed.isRead) unreadCount.value = Math.max(0, unreadCount.value - 1)
+        const [removed] = notifications.value.splice(idx, 1)
+        if (removed && !removed.isRead) unreadCount.value = Math.max(0, unreadCount.value - 1)
         total.value = Math.max(0, total.value - 1)
       }
     } catch (error) {
