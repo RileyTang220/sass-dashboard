@@ -75,6 +75,20 @@ async function onSubmit() {
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Sign in</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Access your workspace, projects, and team activity.</p>
 
+        <div class="mb-6 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 dark:border-indigo-900/60 dark:bg-indigo-950/40">
+          <p class="text-sm font-medium text-indigo-900 dark:text-indigo-200">Demo account</p>
+          <dl class="mt-2 space-y-1 text-sm text-indigo-800 dark:text-indigo-300">
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-indigo-700 dark:text-indigo-400">Email</dt>
+              <dd class="font-mono text-xs sm:text-sm">alex@northstar.dev</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-indigo-700 dark:text-indigo-400">Password</dt>
+              <dd class="font-mono text-xs sm:text-sm">password123</dd>
+            </div>
+          </dl>
+        </div>
+
         <form @submit.prevent="onSubmit" class="space-y-5">
           <div>
             <label for="login-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
